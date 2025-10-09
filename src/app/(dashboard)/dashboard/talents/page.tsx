@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Filter, Sparkles } from 'lucide-react';
 import { searchAPI } from '@/lib/api/search';
+import api from '@/lib/api/axios';
 import { Button } from '@/components/ui/button';
 import { TalentCard } from '@/components/talents/TalentCard';
 import { debounce } from '@/lib/utils';
