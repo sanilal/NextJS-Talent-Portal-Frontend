@@ -1,20 +1,12 @@
-@import "tailwindcss" source("../app/**/*.{js,ts,jsx,tsx}" "../components/**/*.{js,ts,jsx,tsx}");
+@import "tailwindcss";
 
-@theme {
-  --color-background: 0 0% 100%;
-  --color-foreground: 222.2 84% 4.9%;
-  --color-primary: 199 89% 48%;
-  --color-primary-foreground: 210 40% 98%;
-  --color-border: 214.3 31.8% 91.4%;
-  --radius: 0.5rem;
-}
-
-.dark {
-  --color-background: 222.2 84% 4.9%;
-  --color-foreground: 210 40% 98%;
-}
-
-body {
-  background-color: hsl(var(--color-background));
-  color: hsl(var(--color-foreground));
+/* Custom utilities */
+@layer utilities {
+  .container-padding {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+  
+  .section-padding {
+    @apply py-12 md:py-16 lg:py-20;
+  }
 }
