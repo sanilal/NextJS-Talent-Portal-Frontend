@@ -7,9 +7,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { User, Mail, Lock, Phone, Calendar, Eye, EyeOff, Briefcase, Users, Sparkles, ArrowRight } from 'lucide-react';
+import { User, Mail, Lock, Phone, Calendar, Eye, EyeOff, Briefcase, Sparkles, ArrowRight, Layers } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { PublicRoute } from '@/components/auth/PublicRoute';
+import api from '@/lib/api/axios';
 
 const registerSchema = z.object({
   first_name: z.string().min(2, 'First name must be at least 2 characters'),
@@ -18,21 +19,52 @@ const registerSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   password_confirmation: z.string(),
   user_type: z.enum(['talent', 'recruiter']),
+  category_id: z.string().optional(),
   phone: z.string().optional(),
   date_of_birth: z.string().optional(),
   gender: z.enum(['male', 'female', 'other', '']).optional(),
 }).refine((data) => data.password === data.password_confirmation, {
   message: "Passwords don't match",
   path: ['password_confirmation'],
+}).refine((data) => {
+  // category_id is required for talents
+  if (data.user_type === 'talent' && !data.category_id) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Please select a category",
+  path: ['category_id'],
 });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
+
+// Fallback categories in case API fails
+const FALLBACK_CATEGORIES = [
+  { id: 1, name: 'Software Development' },
+  { id: 2, name: 'Web Development' },
+  { id: 3, name: 'Mobile Development' },
+  { id: 4, name: 'UI/UX Design' },
+  { id: 5, name: 'Graphic Design' },
+  { id: 6, name: 'Content Writing' },
+  { id: 7, name: 'Digital Marketing' },
+  { id: 8, name: 'SEO Specialist' },
+  { id: 9, name: 'Data Science' },
+  { id: 10, name: 'DevOps Engineer' },
+  { id: 11, name: 'Project Management' },
+  { id: 12, name: 'Business Analysis' },
+  { id: 13, name: 'Video Editing' },
+  { id: 14, name: 'Photography' },
+  { id: 15, name: 'Virtual Assistant' },
+];
 
 export default function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
   const register = useAuthStore((state) => state.register);
   const isLoading = useAuthStore((state) => state.isLoading);
 
@@ -51,6 +83,32 @@ export default function RegisterPage() {
 
   const userType = watch('user_type');
 
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await api.get('public/categories');
+        const fetchedCategories = response.data?.data || response.data || [];
+        
+        if (Array.isArray(fetchedCategories) && fetchedCategories.length > 0) {
+          setCategories(fetchedCategories);
+        } else {
+          // Use fallback categories if API returns empty
+          setCategories(FALLBACK_CATEGORIES);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch categories, using fallback:', error);
+        // Use fallback categories if API fails
+        setCategories(FALLBACK_CATEGORIES);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // Set user type from URL params
   useEffect(() => {
     const type = searchParams.get('type');
     if (type === 'recruiter' || type === 'talent') {
@@ -240,6 +298,42 @@ export default function RegisterPage() {
                     <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>
                   )}
                 </div>
+
+                {/* Category Selection - Only for Talents */}
+                {userType === 'talent' && (
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      Category <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <Layers className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <select
+                        {...registerField('category_id')}
+                        disabled={loadingCategories}
+                        className="block w-full pl-12 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition appearance-none cursor-pointer"
+                      >
+                        <option value="">
+                          {loadingCategories ? 'Loading categories...' : 'Select your profession'}
+                        </option>
+                        {categories.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                    {errors.category_id && (
+                      <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{errors.category_id.message}</p>
+                    )}
+                  </div>
+                )}
 
                 {/* Password */}
                 <div>

@@ -107,10 +107,20 @@ export const useAuthStore = create<AuthStore>()(
 
           return { success: true };
         } catch (error: any) {
-          const errorMessage =
-            error.response?.data?.message ||
-            error.message ||
-            'Registration failed. Please try again.';
+          // Handle validation errors
+          let errorMessage = 'Registration failed. Please try again.';
+          
+          if (error.response?.data?.errors) {
+            // Get first validation error
+            const errors = error.response.data.errors;
+            const firstErrorKey = Object.keys(errors)[0];
+            const firstError = errors[firstErrorKey];
+            errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+          } else if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
 
           set({
             isLoading: false,
@@ -122,7 +132,7 @@ export const useAuthStore = create<AuthStore>()(
 
           return {
             success: false,
-            error: error.response?.data || errorMessage,
+            error: error.response?.data || { message: errorMessage },
           };
         }
       },

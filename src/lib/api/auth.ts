@@ -29,6 +29,7 @@ interface RegisterData {
   first_name: string;
   last_name: string;
   user_type: 'talent' | 'recruiter';
+  category_id?: string;
   phone?: string;
   date_of_birth?: string;
   gender?: 'male' | 'female' | 'other' | '';
