@@ -1,134 +1,157 @@
+// lib/api/auth.ts
 import api from './axios';
-import type { 
-  AuthResponse, 
-  LoginCredentials, 
-  RegisterData, 
-  User,
-  ApiResponse 
-} from '@/types';
+import { useAuthStore } from '@/store/authStore';
 
-export const authAPI = {
-  /**
-   * Login user
-   */
-  login: async (credentials: LoginCredentials) => {
-    const response = await api.post<AuthResponse>('/auth/login', credentials);
-    return response.data;
-  },
-
-  /**
-   * Register new user
-   */
-  register: async (userData: RegisterData) => {
-    const response = await api.post<AuthResponse>('/auth/register', userData);
-    return response.data;
-  },
-
-  /**
-   * Logout user
-   */
-  logout: async () => {
-    const response = await api.post<ApiResponse>('/auth/logout');
-    return response.data;
-  },
-
-  /**
-   * Get current authenticated user
-   */
-  getCurrentUser: async () => {
-    const response = await api.get<User>('/auth/me');
-    return response.data;
-  },
-
-  /**
-   * Update user profile
-   */
-  updateProfile: async (data: Partial<User>) => {
-    const response = await api.put<User>('/auth/update-profile', data);
-    return response.data;
-  },
-
-  /**
-   * Change password
-   */
-  changePassword: async (passwords: {
-    current_password: string;
-    new_password: string;
-    new_password_confirmation: string;
-  }) => {
-    const response = await api.post<ApiResponse>(
-      '/auth/change-password',
-      passwords
-    );
-    return response.data;
-  },
-
-  /**
-   * Send password reset email
-   */
-  forgotPassword: async (email: string) => {
-    const response = await api.post<ApiResponse>('/auth/forgot-password', {
-      email,
-    });
-    return response.data;
-  },
-
-  /**
-   * Reset password with token
-   */
-  resetPassword: async (data: {
+// Match your actual backend response structure
+interface LoginResponse {
+  token: string;  // Your backend uses "token" not "access_token"
+  token_type: string;
+  user: {
+    id: string;
+    first_name: string;
+    last_name: string;
     email: string;
-    token: string;
-    password: string;
-    password_confirmation: string;
-  }) => {
-    const response = await api.post<ApiResponse>('/auth/reset-password', data);
-    return response.data;
+    user_type: 'talent' | 'recruiter';
+    email_verified_at?: string;
+    phone?: string;
+    bio?: string;
+    location?: string;
+    account_status: string;
+    is_verified: boolean;
+    talent_profile?: any;
+    recruiter_profile?: any;
+  };
+  message: string;
+}
+
+interface RegisterData {
+  email: string;
+  password: string;
+  password_confirmation: string;
+  first_name: string;
+  last_name: string;
+  user_type: 'talent' | 'recruiter';
+  phone?: string;
+}
+
+export const authApi = {
+  // Login
+  login: async (email: string, password: string) => {
+    try {
+      const response = await api.post<LoginResponse>('/auth/login', {
+        email,
+        password,
+      });
+
+      const { token, user } = response.data;
+
+      // Store token and user in auth store
+      useAuthStore.getState().setToken(token);
+      useAuthStore.getState().setUser(user);
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Login error:', error.response?.data || error.message);
+      throw error;
+    }
   },
 
-  /**
-   * Verify email
-   */
+  // Register
+  register: async (data: RegisterData) => {
+    try {
+      const response = await api.post<LoginResponse>('/auth/register', data);
+
+      const { token, user } = response.data;
+
+      // Store token and user
+      useAuthStore.getState().setToken(token);
+      useAuthStore.getState().setUser(user);
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Register error:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  // Logout
+  logout: async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear auth state regardless of API response
+      useAuthStore.getState().clearAuth();
+    }
+  },
+
+  // Get current user
+  getCurrentUser: async () => {
+    try {
+      const response = await api.get('/auth/me');
+      
+      // Update user in store
+      useAuthStore.getState().setUser(response.data.user || response.data);
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('Get current user error:', error.response?.data || error.message);
+      
+      // If unauthorized, clear auth
+      if (error.response?.status === 401) {
+        useAuthStore.getState().clearAuth();
+      }
+      
+      throw error;
+    }
+  },
+
+  // Request password reset
+  forgotPassword: async (email: string) => {
+    try {
+      const response = await api.post('/auth/forgot-password', { email });
+      return response.data;
+    } catch (error: any) {
+      console.error('Forgot password error:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  // Reset password
+  resetPassword: async (token: string, password: string, password_confirmation: string) => {
+    try {
+      const response = await api.post('/auth/reset-password', {
+        token,
+        password,
+        password_confirmation,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Reset password error:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  // Verify email
   verifyEmail: async (token: string) => {
-    const response = await api.post<ApiResponse>('/auth/verify-email', {
-      token,
-    });
-    return response.data;
+    try {
+      const response = await api.post('/auth/verify-email', { token });
+      return response.data;
+    } catch (error: any) {
+      console.error('Verify email error:', error.response?.data || error.message);
+      throw error;
+    }
   },
 
-  /**
-   * Resend verification email
-   */
-  resendVerificationEmail: async () => {
-    const response = await api.post<ApiResponse>(
-      '/auth/resend-verification'
-    );
-    return response.data;
-  },
-
-  /**
-   * Enable 2FA
-   */
-  enable2FA: async () => {
-    const response = await api.post<ApiResponse>('/auth/2fa/enable');
-    return response.data;
-  },
-
-  /**
-   * Disable 2FA
-   */
-  disable2FA: async () => {
-    const response = await api.post<ApiResponse>('/auth/2fa/disable');
-    return response.data;
-  },
-
-  /**
-   * Verify 2FA code
-   */
-  verify2FA: async (code: string) => {
-    const response = await api.post<ApiResponse>('/auth/2fa/verify', {
-      code,
-    });
-    return response.data;
+  // Resend verification email
+  resendVerification: async () => {
+    try {
+      const response = await api.post('/auth/resend-verification');
+      return response.data;
+    } catch (error: any) {
+      console.error('Resend verification error:', error.response?.data || error.message);
+      throw error;
+    }
   },
 };
