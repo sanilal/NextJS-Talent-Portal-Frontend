@@ -9,6 +9,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  _hasHydrated: boolean; // Track if store has been rehydrated from localStorage
 }
 
 interface AuthActions {
@@ -19,6 +20,7 @@ interface AuthActions {
   updateUser: (user: User) => void;
   clearError: () => void;
   setLoading: (loading: boolean) => void;
+  setHasHydrated: (hasHydrated: boolean) => void;
 }
 
 type AuthStore = AuthState & AuthActions;
@@ -30,10 +32,15 @@ export const useAuthStore = create<AuthStore>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      isLoading: false,
+      isLoading: true, // Start as true to prevent premature redirects
       error: null,
+      _hasHydrated: false,
 
       // Actions
+      setHasHydrated: (hasHydrated) => {
+        set({ _hasHydrated: hasHydrated, isLoading: false });
+      },
+
       login: async (credentials) => {
         set({ isLoading: true, error: null });
         
@@ -240,6 +247,10 @@ export const useAuthStore = create<AuthStore>()(
         token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => (state) => {
+        // Called after rehydration is complete
+        state?.setHasHydrated(true);
+      },
     }
   )
 );
@@ -249,3 +260,4 @@ export const selectUser = (state: AuthStore) => state.user;
 export const selectIsAuthenticated = (state: AuthStore) => state.isAuthenticated;
 export const selectIsLoading = (state: AuthStore) => state.isLoading;
 export const selectError = (state: AuthStore) => state.error;
+export const selectHasHydrated = (state: AuthStore) => state._hasHydrated;
