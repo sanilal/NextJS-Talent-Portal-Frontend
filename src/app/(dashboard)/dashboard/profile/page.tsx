@@ -23,6 +23,9 @@ import { talentsAPI } from '@/lib/api/talents';
 import api from '@/lib/api/axios';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SkillsSection } from '@/components/profile/SkillsSection';
+import { ExperienceSection } from '@/components/profile/ExperienceSection';
+import { EducationSection } from '@/components/profile/EducationSection';
 import type { TalentProfile, Skill, TalentSkill, Experience, Education, Portfolio } from '@/types';
 
 const profileSchema = z.object({
@@ -488,98 +491,12 @@ export default function TalentProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Skills, Experience, Education, Portfolio sections will be added as separate components */}
-          <SkillsSection profileId={profile?.id} skills={profile?.skills} allSkills={allSkills} />
-          <ExperienceSection profileId={profile?.id} experiences={profile?.experiences} />
-          <EducationSection profileId={profile?.id} education={profile?.education} />
-          <PortfolioSection profileId={profile?.id} portfolios={profile?.portfolios} />
+          {/* Skills, Experience, Education sections */}
+          <SkillsSection skills={profile?.skills} allSkills={allSkills} />
+          <ExperienceSection experiences={profile?.experiences} />
+          <EducationSection education={profile?.education} />
         </div>
       </div>
     </div>
-  );
-}
-
-// Placeholder components - will be implemented separately
-function SkillsSection({ profileId, skills, allSkills }: any) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Skills</CardTitle>
-          <Button size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Skill
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Skills section coming soon...
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ExperienceSection({ profileId, experiences }: any) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Work Experience</CardTitle>
-          <Button size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Experience
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Experience section coming soon...
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function EducationSection({ profileId, education }: any) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Education</CardTitle>
-          <Button size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Education
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Education section coming soon...
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function PortfolioSection({ profileId, portfolios }: any) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Portfolio</CardTitle>
-          <Button size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Project
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Portfolio section coming soon...
-        </p>
-      </CardContent>
-    </Card>
   );
 }
