@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { authAPI } from '@/lib/api/auth';
+import { authApi } from '@/lib/api/auth';
 import type { User, LoginCredentials, RegisterData } from '@/types';
 
 interface AuthState {
@@ -38,12 +38,13 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await authAPI.login(credentials);
+          const response = await authApi.login(credentials.email, credentials.password);
           const { user, token } = response;
 
-          // Save token to localStorage
+          // Save token to localStorage explicitly
           if (typeof window !== 'undefined') {
             localStorage.setItem('token', token);
+            localStorage.setItem('user', JSON.stringify(user));
           }
 
           set({
@@ -58,12 +59,15 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error: any) {
           const errorMessage = 
             error.response?.data?.message || 
+            error.message ||
             'Login failed. Please try again.';
 
           set({
             isLoading: false,
             error: errorMessage,
             isAuthenticated: false,
+            user: null,
+            token: null,
           });
 
           return {
@@ -77,12 +81,13 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
 
         try {
-          const response = await authAPI.register(userData);
+          const response = await authApi.register(userData);
           const { user, token } = response;
 
-          // Save token to localStorage
+          // Save token to localStorage explicitly
           if (typeof window !== 'undefined') {
             localStorage.setItem('token', token);
+            localStorage.setItem('user', JSON.stringify(user));
           }
 
           set({
@@ -97,12 +102,15 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error: any) {
           const errorMessage =
             error.response?.data?.message ||
+            error.message ||
             'Registration failed. Please try again.';
 
           set({
             isLoading: false,
             error: errorMessage,
             isAuthenticated: false,
+            user: null,
+            token: null,
           });
 
           return {
@@ -114,7 +122,7 @@ export const useAuthStore = create<AuthStore>()(
 
       logout: async () => {
         try {
-          await authAPI.logout();
+          await authApi.logout();
         } catch (error) {
           console.error('Logout error:', error);
         } finally {
@@ -122,6 +130,7 @@ export const useAuthStore = create<AuthStore>()(
           if (typeof window !== 'undefined') {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            localStorage.removeItem('auth-storage');
           }
 
           set({
@@ -129,48 +138,80 @@ export const useAuthStore = create<AuthStore>()(
             token: null,
             isAuthenticated: false,
             error: null,
+            isLoading: false,
           });
         }
       },
 
       checkAuth: async () => {
         // Only run on client side
-        if (typeof window === 'undefined') return;
+        if (typeof window === 'undefined') {
+          set({ isLoading: false });
+          return;
+        }
 
         const token = localStorage.getItem('token');
+        const storedUser = localStorage.getItem('user');
         
         if (!token) {
           set({
             isAuthenticated: false,
             user: null,
             token: null,
+            isLoading: false,
           });
           return;
         }
 
+        // If we have a token and stored user, set them immediately
+        if (storedUser) {
+          try {
+            const user = JSON.parse(storedUser);
+            set({
+              user,
+              token,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+          } catch (error) {
+            console.error('Error parsing stored user:', error);
+          }
+        }
+
+        // Then verify with the server in the background
         try {
-          const user = await authAPI.getCurrentUser();
+          const user = await authApi.getCurrentUser();
           
           set({
             user,
             token,
             isAuthenticated: true,
+            isLoading: false,
           });
+
+          // Update stored user
+          localStorage.setItem('user', JSON.stringify(user));
         } catch (error) {
+          console.error('Auth check failed:', error);
           // Token is invalid, clear auth
           localStorage.removeItem('token');
           localStorage.removeItem('user');
+          localStorage.removeItem('auth-storage');
           
           set({
             user: null,
             token: null,
             isAuthenticated: false,
+            isLoading: false,
           });
         }
       },
 
       updateUser: (user) => {
         set({ user });
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('user', JSON.stringify(user));
+        }
       },
 
       clearError: () => {
@@ -184,7 +225,6 @@ export const useAuthStore = create<AuthStore>()(
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => {
-        // Only use localStorage on client side
         if (typeof window !== 'undefined') {
           return localStorage;
         }

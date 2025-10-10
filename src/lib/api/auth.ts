@@ -1,10 +1,9 @@
 // lib/api/auth.ts
 import api from './axios';
-import { useAuthStore } from '@/store/authStore';
 
 // Match your actual backend response structure
 interface LoginResponse {
-  token: string;  // Your backend uses "token" not "access_token"
+  token: string;
   token_type: string;
   user: {
     id: string;
@@ -35,7 +34,7 @@ interface RegisterData {
 }
 
 export const authApi = {
-  // Login
+  // Login - Just return data, don't touch store
   login: async (email: string, password: string) => {
     try {
       const response = await api.post<LoginResponse>('/auth/login', {
@@ -43,12 +42,7 @@ export const authApi = {
         password,
       });
 
-      const { token, user } = response.data;
-
-      // Store token and user in auth store
-      useAuthStore.getState().setToken(token);
-      useAuthStore.getState().setUser(user);
-
+      // ✅ Just return the data - let the store handle it
       return response.data;
     } catch (error: any) {
       console.error('Login error:', error.response?.data || error.message);
@@ -56,17 +50,12 @@ export const authApi = {
     }
   },
 
-  // Register
+  // Register - Just return data, don't touch store
   register: async (data: RegisterData) => {
     try {
       const response = await api.post<LoginResponse>('/auth/register', data);
 
-      const { token, user } = response.data;
-
-      // Store token and user
-      useAuthStore.getState().setToken(token);
-      useAuthStore.getState().setUser(user);
-
+      // ✅ Just return the data - let the store handle it
       return response.data;
     } catch (error: any) {
       console.error('Register error:', error.response?.data || error.message);
@@ -74,35 +63,28 @@ export const authApi = {
     }
   },
 
-  // Logout
+  // Logout - Just make the API call
   logout: async () => {
     try {
       await api.post('/auth/logout');
+      // ✅ Return success - let the store handle cleanup
+      return { success: true };
     } catch (error) {
       console.error('Logout error:', error);
-    } finally {
-      // Clear auth state regardless of API response
-      useAuthStore.getState().clearAuth();
+      // ✅ Still return so store can cleanup even if API fails
+      return { success: false, error };
     }
   },
 
-  // Get current user
+  // Get current user - Just return user data
   getCurrentUser: async () => {
     try {
       const response = await api.get('/auth/me');
       
-      // Update user in store
-      useAuthStore.getState().setUser(response.data.user || response.data);
-      
-      return response.data;
+      // ✅ Return the user data - let the store decide what to do with it
+      return response.data.user || response.data;
     } catch (error: any) {
       console.error('Get current user error:', error.response?.data || error.message);
-      
-      // If unauthorized, clear auth
-      if (error.response?.status === 401) {
-        useAuthStore.getState().clearAuth();
-      }
-      
       throw error;
     }
   },

@@ -9,7 +9,8 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  ArrowRight
+  ArrowRight,
+  Search
 } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api/axios';
@@ -22,26 +23,48 @@ export default function TalentDashboard() {
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ['talent-dashboard-stats'],
     queryFn: async () => {
-      const response = await api.get('/talent/dashboard');
-      return response.data;
+      try {
+        const response = await api.get('/talent/dashboard');
+        return response.data || {};
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+        return {
+          total_applications: 0,
+          pending_applications: 0,
+          profile_completeness: 0,
+          unread_messages: 0,
+        };
+      }
     },
   });
 
   // Fetch recent applications
-  const { data: applications, isLoading: appsLoading } = useQuery<Application[]>({
+  const { data: applications = [], isLoading: appsLoading } = useQuery<Application[]>({
     queryKey: ['recent-applications'],
     queryFn: async () => {
-      const response = await api.get('/talent/applications?limit=5');
-      return response.data.data;
+      try {
+        const response = await api.get('/talent/applications?limit=5');
+        // Handle different response structures
+        return response.data?.data || response.data || [];
+      } catch (error) {
+        console.error('Failed to fetch applications:', error);
+        return [];
+      }
     },
   });
 
   // Fetch recommended projects
-  const { data: recommendations, isLoading: recsLoading } = useQuery<Project[]>({
+  const { data: recommendations = [], isLoading: recsLoading } = useQuery<Project[]>({
     queryKey: ['recommended-projects'],
     queryFn: async () => {
-      const response = await api.get('/projects?limit=5');
-      return response.data.data;
+      try {
+        const response = await api.get('/projects?limit=5');
+        // Handle different response structures
+        return response.data?.data || response.data || [];
+      } catch (error) {
+        console.error('Failed to fetch recommendations:', error);
+        return [];
+      }
     },
   });
 
@@ -135,7 +158,7 @@ export default function TalentDashboard() {
                   </div>
                 ))}
               </div>
-            ) : applications && applications.length > 0 ? (
+            ) : applications.length > 0 ? (
               <div className="space-y-4">
                 {applications.map((app) => (
                   <div
@@ -144,7 +167,7 @@ export default function TalentDashboard() {
                   >
                     <div className="flex-1">
                       <h3 className="font-medium text-gray-900 dark:text-white">
-                        {app.project?.title}
+                        {app.project?.title || 'Untitled Project'}
                       </h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                         Applied {new Date(app.created_at).toLocaleDateString()}
@@ -211,7 +234,7 @@ export default function TalentDashboard() {
                   </div>
                 ))}
               </div>
-            ) : recommendations && recommendations.length > 0 ? (
+            ) : recommendations.length > 0 ? (
               <div className="space-y-4">
                 {recommendations.map((project) => (
                   <Link

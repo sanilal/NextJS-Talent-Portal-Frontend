@@ -39,7 +39,9 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     console.log('Submitting login:', data.email);
     
-    const result = await login(data);
+    // const result = await login(data);
+    const result = await useAuthStore.getState().login(data);
+
 
     if (result.success) {
       toast.success('Welcome back!');
