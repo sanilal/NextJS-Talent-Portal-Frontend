@@ -55,7 +55,10 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
           {/* Right side */}
           <div className="flex items-center gap-3">
             {/* Notifications */}
-            <NotificationsDropdown />
+            <button className="relative p-2 text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              <Bell className="h-6 w-6" />
+              <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-800"></span>
+            </button>
 
             {/* User Menu */}
             <div className="relative">
