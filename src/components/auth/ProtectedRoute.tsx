@@ -11,14 +11,21 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRouteProps) {
   const router = useRouter();
-  const { isAuthenticated, user, isLoading, checkAuth } = useAuthStore();
+  const { isAuthenticated, user, isLoading, checkAuth, _hasHydrated } = useAuthStore();
 
   useEffect(() => {
-    // Check authentication on mount
-    checkAuth();
-  }, [checkAuth]);
+    // Wait for store to rehydrate before checking auth
+    if (_hasHydrated) {
+      checkAuth();
+    }
+  }, [_hasHydrated, checkAuth]);
 
   useEffect(() => {
+    // Only make redirect decisions after hydration is complete
+    if (!_hasHydrated) {
+      return; // Wait for rehydration
+    }
+
     // Redirect if not authenticated after loading
     if (!isLoading && !isAuthenticated) {
       router.push('/login');
@@ -42,10 +49,10 @@ export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRoutePro
         router.push('/dashboard');
       }
     }
-  }, [isLoading, isAuthenticated, user, allowedUserTypes, router]);
+  }, [_hasHydrated, isLoading, isAuthenticated, user, allowedUserTypes, router]);
 
-  // Show loading state
-  if (isLoading) {
+  // Show loading state while rehydrating or checking auth
+  if (!_hasHydrated || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
