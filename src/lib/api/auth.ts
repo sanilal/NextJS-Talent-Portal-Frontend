@@ -1,4 +1,3 @@
-// lib/api/auth.ts
 import api from './axios';
 
 // Match your actual backend response structure
@@ -31,6 +30,8 @@ interface RegisterData {
   last_name: string;
   user_type: 'talent' | 'recruiter';
   phone?: string;
+  date_of_birth?: string;
+  gender?: 'male' | 'female' | 'other' | '';
 }
 
 export const authApi = {
@@ -42,7 +43,6 @@ export const authApi = {
         password,
       });
 
-      // ✅ Just return the data - let the store handle it
       return response.data;
     } catch (error: any) {
       console.error('Login error:', error.response?.data || error.message);
@@ -50,12 +50,24 @@ export const authApi = {
     }
   },
 
-  // Register - Just return data, don't touch store
+  // Register - Map user_type to role for backend
   register: async (data: RegisterData) => {
     try {
-      const response = await api.post<LoginResponse>('/auth/register', data);
+      // Transform the data to match backend expectations
+      const requestData = {
+        first_name: data.first_name,
+        last_name: data.last_name,
+        email: data.email,
+        password: data.password,
+        password_confirmation: data.password_confirmation,
+        role: data.user_type, // Backend expects 'role' not 'user_type'
+        phone: data.phone,
+        date_of_birth: data.date_of_birth,
+        gender: data.gender,
+      };
 
-      // ✅ Just return the data - let the store handle it
+      const response = await api.post<LoginResponse>('/auth/register', requestData);
+
       return response.data;
     } catch (error: any) {
       console.error('Register error:', error.response?.data || error.message);
@@ -67,11 +79,9 @@ export const authApi = {
   logout: async () => {
     try {
       await api.post('/auth/logout');
-      // ✅ Return success - let the store handle cleanup
       return { success: true };
     } catch (error) {
       console.error('Logout error:', error);
-      // ✅ Still return so store can cleanup even if API fails
       return { success: false, error };
     }
   },
@@ -80,8 +90,6 @@ export const authApi = {
   getCurrentUser: async () => {
     try {
       const response = await api.get('/auth/me');
-      
-      // ✅ Return the user data - let the store decide what to do with it
       return response.data.user || response.data;
     } catch (error: any) {
       console.error('Get current user error:', error.response?.data || error.message);

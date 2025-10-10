@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
+import { PublicRoute } from '@/components/auth/PublicRoute';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -63,6 +64,7 @@ export default function LoginPage() {
   };
 
   return (
+    <PublicRoute> 
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
         {/* Card */}
@@ -227,5 +229,6 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+    </PublicRoute>
   );
 }
