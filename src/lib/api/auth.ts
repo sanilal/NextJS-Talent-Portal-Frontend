@@ -61,7 +61,8 @@ export const authApi = {
         email: data.email,
         password: data.password,
         password_confirmation: data.password_confirmation,
-        role: data.user_type, // Backend expects 'role' not 'user_type'
+        user_type: data.user_type,
+        category_id: data.category_id,
         phone: data.phone,
         date_of_birth: data.date_of_birth,
         gender: data.gender,

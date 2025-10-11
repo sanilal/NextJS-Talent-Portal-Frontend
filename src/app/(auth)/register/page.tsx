@@ -117,6 +117,12 @@ export default function RegisterPage() {
   }, [searchParams, setValue]);
 
   const onSubmit = async (data: RegisterFormData) => {
+
+    console.log('📋 Form data from React Hook Form:', data);
+  console.log('👤 user_type value:', data.user_type);
+  console.log('🏷️ category_id value:', data.category_id);
+  console.log('🏷️ category_id type:', typeof data.category_id);
+
     const result = await register(data);
 
     if (result.success) {
@@ -235,6 +241,8 @@ export default function RegisterPage() {
 
             {/* Form */}
             <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
+              {/* Hidden field to include user_type in form submission */}
+              <input type="hidden" {...registerField('user_type')} />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* First Name */}
                 <div>
