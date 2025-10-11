@@ -5,6 +5,8 @@ export interface User {
   last_name: string;
   email: string;
   user_type: 'talent' | 'recruiter' | 'admin';
+  account_status: 'active' | 'pending_verification' | 'suspended' | 'banned';
+  email_verified_at?: string;
   phone?: string;
   date_of_birth?: string;
   gender?: string;

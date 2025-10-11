@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useAuthStore } from '@/store/authStore';
 import { 
   Briefcase, 
   FileText, 
@@ -17,8 +18,10 @@ import api from '@/lib/api/axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { DashboardStats, Application, Project } from '@/types';
+import { VerificationBanner } from '@/components/VerificationBanner';
 
 export default function TalentDashboard() {
+  const user = useAuthStore((state) => state.user);
   // Fetch dashboard stats
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ['talent-dashboard-stats'],
@@ -103,7 +106,11 @@ export default function TalentDashboard() {
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div>
+          <div className="container mx-auto px-4 py-8">
+         {/* Show banner if user needs verification */}
+      {user?.account_status === 'pending_verification' && (
+        <VerificationBanner />
+      )}
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           Dashboard
         </h1>

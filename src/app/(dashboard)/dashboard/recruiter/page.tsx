@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useAuthStore } from '@/store/authStore'
 import { 
   Briefcase, 
   Users, 
@@ -17,6 +18,7 @@ import api from '@/lib/api/axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { DashboardStats, Application, Project } from '@/types';
+import { VerificationBanner } from '@/components/VerificationBanner';
 
 export default function RecruiterDashboard() {
   // Fetch dashboard stats
@@ -81,6 +83,10 @@ export default function RecruiterDashboard() {
     <div className="space-y-8">
       {/* Page Header */}
       <div className="flex items-center justify-between">
+         {/* Show banner if user needs verification */}
+          {user?.account_status === 'pending_verification' && (
+            <VerificationBanner />
+          )}
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Dashboard
