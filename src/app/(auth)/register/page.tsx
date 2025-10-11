@@ -88,15 +88,22 @@ export default function RegisterPage() {
     const fetchCategories = async () => {
       try {
         const response = await api.get('public/categories');
+        console.log('🔍 API Response:', response.data); // Debug log
+
         const fetchedCategories = response.data?.data || response.data || [];
+        console.log('🔍 Fetched Categories:', fetchedCategories); // Debug log
+
         
         if (Array.isArray(fetchedCategories) && fetchedCategories.length > 0) {
+          console.log('✅ Using API categories'); // Debug log
           setCategories(fetchedCategories);
         } else {
+          console.warn('⚠️ Using fallback categories');
           // Use fallback categories if API returns empty
           setCategories(FALLBACK_CATEGORIES);
         }
       } catch (error) {
+        console.error('❌ Failed to fetch categories:', error);
         console.warn('Failed to fetch categories, using fallback:', error);
         // Use fallback categories if API fails
         setCategories(FALLBACK_CATEGORIES);
