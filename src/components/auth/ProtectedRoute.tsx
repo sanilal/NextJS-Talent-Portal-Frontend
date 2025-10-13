@@ -14,11 +14,23 @@ export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRoutePro
   const { isAuthenticated, user, _hasHydrated } = useAuthStore();
 
   useEffect(() => {
+    console.log('🛡️ ProtectedRoute useEffect triggered:', {
+      hasHydrated: _hasHydrated,
+      isAuthenticated,
+      userExists: !!user,
+      userType: user?.user_type,
+      allowedTypes: allowedUserTypes,
+    });
+
     if (!_hasHydrated) {
+      console.log('⏳ Not hydrated yet, waiting...');
       return;
     }
 
     if (!isAuthenticated) {
+      console.log('❌ NOT AUTHENTICATED - Redirecting to /login');
+      console.log('📍 Current path:', window.location.pathname);
+      console.log('💾 Token in localStorage:', localStorage.getItem('token') ? 'EXISTS' : 'MISSING');
       router.push('/login');
       return;
     }
@@ -29,6 +41,7 @@ export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRoutePro
       allowedUserTypes &&
       !allowedUserTypes.includes(user.user_type)
     ) {
+      console.log('❌ Wrong user type, redirecting...');
       if (user.user_type === 'talent') {
         router.push('/dashboard/talent');
       } else if (user.user_type === 'recruiter') {
@@ -36,7 +49,10 @@ export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRoutePro
       } else {
         router.push('/dashboard');
       }
+      return;
     }
+
+    console.log('✅ ProtectedRoute: Access granted');
   }, [_hasHydrated, isAuthenticated, user, allowedUserTypes, router]);
 
   if (!_hasHydrated) {
@@ -51,10 +67,12 @@ export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRoutePro
   }
 
   if (!isAuthenticated) {
+    console.log('🚫 Rendering null - not authenticated');
     return null;
   }
 
   if (allowedUserTypes && user && !allowedUserTypes.includes(user.user_type)) {
+    console.log('🚫 Rendering null - wrong user type');
     return null;
   }
 
