@@ -16,6 +16,7 @@ api.interceptors.request.use(
     // Get token from localStorage (only on client side)
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('token');
+      console.log('🔑 API Request:', config.url);
       console.log('🔑 Token being sent:', token ? 'YES' : 'NO'); 
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -36,27 +37,49 @@ api.interceptors.response.use(
   (error: AxiosError) => {
     // Handle specific error codes
     if (error.response) {
+      const url = error.config?.url || '';
+      
       switch (error.response.status) {
         case 401:
-          // Unauthorized - clear auth and redirect to login
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            // Only redirect if not already on login page
-            if (!window.location.pathname.includes('/login')) {
-              window.location.href = '/login';
+          console.log('❌ 401 Error on:', url);
+          
+          // ✅ CRITICAL FIX: Only clear auth for actual auth endpoints
+          // Don't clear auth for data/resource endpoints (dashboard, projects, etc.)
+          const isAuthEndpoint = url.includes('/auth/login') || 
+                                url.includes('/auth/register') || 
+                                url.includes('/auth/me') ||
+                                url.includes('/auth/verify') ||
+                                url.includes('/auth/refresh');
+          
+          if (isAuthEndpoint) {
+            console.log('🔒 Auth endpoint failed - clearing auth');
+            // Unauthorized on auth endpoints - clear auth and redirect
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              localStorage.removeItem('auth-storage');
+              
+              // Only redirect if not already on login page
+              if (!window.location.pathname.includes('/login')) {
+                window.location.href = '/login';
+              }
             }
+          } else {
+            // 401 on data endpoints - just log it, don't clear auth
+            console.log('⚠️ Data endpoint returned 401 - NOT clearing auth');
+            console.log('💡 This is likely a backend API issue, not an auth problem');
           }
           break;
 
         case 403:
-          // Forbidden
-          console.error('Access forbidden');
+          // Forbidden - permission issue, NOT auth issue
+          console.log('🚫 403 Forbidden on:', url);
+          console.log('💡 You are authenticated but lack permission for this resource');
           break;
 
         case 404:
           // Not found
-          console.error('Resource not found');
+          console.error('Resource not found:', url);
           break;
 
         case 422:
@@ -73,7 +96,7 @@ api.interceptors.response.use(
         case 502:
         case 503:
           // Server errors
-          console.error('Server error. Please try again later.');
+          console.error('Server error on:', url);
           break;
 
         default:
