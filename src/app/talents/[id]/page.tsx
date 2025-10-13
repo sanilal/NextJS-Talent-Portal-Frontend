@@ -1,4 +1,3 @@
-// src/app/talents/[id]/page.tsx - Individual Talent Profile
 'use client';
 
 import { useState, useEffect } from 'react';
