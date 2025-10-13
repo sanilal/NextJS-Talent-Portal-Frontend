@@ -11,36 +11,24 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRouteProps) {
   const router = useRouter();
-  const { isAuthenticated, user, isLoading, checkAuth, _hasHydrated } = useAuthStore();
+  const { isAuthenticated, user, _hasHydrated } = useAuthStore();
 
   useEffect(() => {
-    // Wait for store to rehydrate before checking auth
-    if (_hasHydrated) {
-      checkAuth();
-    }
-  }, [_hasHydrated, checkAuth]);
-
-  useEffect(() => {
-    // Only make redirect decisions after hydration is complete
     if (!_hasHydrated) {
-      return; // Wait for rehydration
+      return;
     }
 
-    // Redirect if not authenticated after loading
-    if (!isLoading && !isAuthenticated) {
+    if (!isAuthenticated) {
       router.push('/login');
       return;
     }
 
-    // Check user type restrictions if specified
     if (
-      !isLoading &&
       isAuthenticated &&
       user &&
       allowedUserTypes &&
       !allowedUserTypes.includes(user.user_type)
     ) {
-      // Redirect to appropriate dashboard if wrong user type
       if (user.user_type === 'talent') {
         router.push('/dashboard/talent');
       } else if (user.user_type === 'recruiter') {
@@ -49,10 +37,9 @@ export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRoutePro
         router.push('/dashboard');
       }
     }
-  }, [_hasHydrated, isLoading, isAuthenticated, user, allowedUserTypes, router]);
+  }, [_hasHydrated, isAuthenticated, user, allowedUserTypes, router]);
 
-  // Show loading state while rehydrating or checking auth
-  if (!_hasHydrated || isLoading) {
+  if (!_hasHydrated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
@@ -63,16 +50,13 @@ export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRoutePro
     );
   }
 
-  // Don't render anything if not authenticated (will redirect)
   if (!isAuthenticated) {
     return null;
   }
 
-  // Check user type restriction
   if (allowedUserTypes && user && !allowedUserTypes.includes(user.user_type)) {
     return null;
   }
 
-  // Render children if authenticated and authorized
   return <>{children}</>;
 }

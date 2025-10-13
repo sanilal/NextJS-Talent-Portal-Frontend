@@ -1,5 +1,5 @@
 'use client';
-
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { 
@@ -21,11 +21,23 @@ import type { DashboardStats, Application, Project } from '@/types';
 import { VerificationBanner } from '@/components/VerificationBanner';
 
 export default function TalentDashboard() {
-  const user = useAuthStore((state) => state.user);
-  // Fetch dashboard stats
+  const { user, token, isAuthenticated, _hasHydrated } = useAuthStore();
+
+  useEffect(() => {
+    console.log('🔍 Dashboard Auth State:', {
+      user,
+      token: token ? 'EXISTS' : 'NULL',
+      isAuthenticated,
+      hasHydrated: _hasHydrated,
+    });
+  }, [user, token, isAuthenticated, _hasHydrated]);
+
+  // ✅ FIX: Add enabled option to wait for hydration
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ['talent-dashboard-stats'],
+    enabled: _hasHydrated && isAuthenticated, // ← Don't run until hydrated!
     queryFn: async () => {
+      console.log('📊 Fetching dashboard stats...');
       try {
         const response = await api.get('/talent/dashboard');
         return response.data || {};
@@ -41,13 +53,14 @@ export default function TalentDashboard() {
     },
   });
 
-  // Fetch recent applications
+  // ✅ FIX: Add enabled option
   const { data: applications = [], isLoading: appsLoading } = useQuery<Application[]>({
     queryKey: ['recent-applications'],
+    enabled: _hasHydrated && isAuthenticated, // ← Wait for hydration!
     queryFn: async () => {
+      console.log('📝 Fetching applications...');
       try {
         const response = await api.get('/talent/applications?limit=5');
-        // Handle different response structures
         return response.data?.data || response.data || [];
       } catch (error) {
         console.error('Failed to fetch applications:', error);
@@ -56,13 +69,14 @@ export default function TalentDashboard() {
     },
   });
 
-  // Fetch recommended projects
+  // ✅ FIX: Add enabled option
   const { data: recommendations = [], isLoading: recsLoading } = useQuery<Project[]>({
     queryKey: ['recommended-projects'],
+    enabled: _hasHydrated && isAuthenticated, // ← Wait for hydration!
     queryFn: async () => {
+      console.log('💡 Fetching recommendations...');
       try {
         const response = await api.get('/projects?limit=5');
-        // Handle different response structures
         return response.data?.data || response.data || [];
       } catch (error) {
         console.error('Failed to fetch recommendations:', error);
@@ -70,6 +84,18 @@ export default function TalentDashboard() {
       }
     },
   });
+
+  // ✅ Show loading state while hydrating
+  if (!_hasHydrated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   const statCards = [
     {
@@ -106,11 +132,11 @@ export default function TalentDashboard() {
   return (
     <div className="space-y-8">
       {/* Page Header */}
-          <div className="container mx-auto px-4 py-8">
-         {/* Show banner if user needs verification */}
-      {user?.account_status === 'pending_verification' && (
-        <VerificationBanner />
-      )}
+      <div className="container mx-auto px-4 py-8">
+        {/* Show banner if user needs verification */}
+        {user?.account_status === 'pending_verification' && (
+          <VerificationBanner />
+        )}
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           Dashboard
         </h1>
