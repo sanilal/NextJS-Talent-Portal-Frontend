@@ -20,7 +20,11 @@ import { Button } from '@/components/ui/button';
 import type { DashboardStats, Application, Project } from '@/types';
 import { VerificationBanner } from '@/components/VerificationBanner';
 
+
+
 export default function RecruiterDashboard() {
+
+  const { user } = useAuthStore();
   // Fetch dashboard stats
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ['recruiter-dashboard-stats'],
