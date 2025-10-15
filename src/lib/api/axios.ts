@@ -144,4 +144,5 @@ export const handleApiError = (error: any) => {
   return error.message || 'An unexpected error occurred';
 };
 
+export { api };
 export default api;

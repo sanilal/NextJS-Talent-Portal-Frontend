@@ -40,6 +40,164 @@ export interface RegisterData {
   gender?: string;
 }
 
+// Skill Types (UPDATED to match Laravel backend)
+export interface Skill {
+  id: number;
+  name: string;
+  slug: string;
+  category_id?: number;
+  category?: Category;
+  description?: string;
+  icon?: string;
+  is_featured: boolean;
+  is_active: boolean;
+  usage_count: number;
+  talents_count: number;
+  metadata?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+}
+
+// TalentSkill Pivot Types (UPDATED to match Laravel pivot table)
+export interface TalentSkill {
+  id: number;
+  talent_profile_id: number; // CRITICAL: matches Laravel backend
+  skill_id: number;
+  skill?: Skill;
+  description?: string;
+  proficiency_level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+  years_of_experience?: number;
+  certifications?: Array<{
+    name: string;
+    issuer?: string;
+    date?: string;
+    url?: string;
+  }>;
+  is_verified: boolean;
+  image_path?: string;
+  image_url?: string; // Computed by Laravel accessor
+  video_url?: string;
+  is_primary: boolean;
+  display_order: number;
+  show_on_profile: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Talent Profile Types (UPDATED)
+export interface TalentProfile {
+  id: number;
+  user_id: number;
+  user?: User;
+  primary_category_id?: number;
+  professional_title?: string;
+  summary?: string;
+  experience_level: 'entry' | 'junior' | 'intermediate' | 'senior' | 'expert';
+  hourly_rate_min?: number;
+  hourly_rate_max?: number;
+  currency: string;
+  availability_types?: string[]; // JSON field
+  is_available: boolean;
+  work_preferences?: Record<string, any>; // JSON field
+  preferred_locations?: string[]; // JSON field
+  languages?: Array<{
+    language: string;
+    proficiency: string;
+  }>; // JSON field
+  is_featured: boolean;
+  is_public: boolean;
+  profile_views: number;
+  average_rating?: number;
+  total_ratings: number;
+  profile_completion_percentage: number;
+  
+  // Relations
+  skills?: TalentSkill[]; // Changed from talent_skills to match eager loading
+  experiences?: Experience[];
+  education?: Education[];
+  portfolios?: Portfolio[];
+  
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+}
+
+// Experience Types
+export interface Experience {
+  id: number;
+  talent_profile_id: number;
+  title: string;
+  company: string;
+  location?: string;
+  is_current: boolean;
+  start_date: string;
+  end_date?: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Education Types
+export interface Education {
+  id: number;
+  talent_profile_id: number;
+  degree: string;
+  field_of_study: string;
+  institution: string;
+  location?: string;
+  start_date: string;
+  end_date?: string;
+  is_current: boolean;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Portfolio Types
+export interface Portfolio {
+  id: number;
+  talent_profile_id: number;
+  title: string;
+  description?: string;
+  url?: string;
+  image_url?: string;
+  video_url?: string;
+  external_url?: string;
+  project_date?: string;
+  is_featured: boolean;
+  display_order: number;
+  skills?: Skill[];
+  created_at: string;
+  updated_at: string;
+}
+
+// Review Types (NEW - from proposed talent.ts)
+export interface Review {
+  id: number;
+  talent_profile_id: number;
+  reviewer_id: number;
+  rating: number;
+  comment?: string;
+  is_approved: boolean;
+  created_at: string;
+  updated_at: string;
+  reviewer?: {
+    name: string;
+    avatar?: string;
+    company?: string;
+  };
+}
+
+// Talent Stats (NEW)
+export interface TalentStats {
+  total_projects: number;
+  total_reviews: number;
+  average_rating: number;
+  response_time?: string;
+  completion_rate?: number;
+}
+
 // Project Types
 export interface Project {
   id: number;
@@ -86,91 +244,6 @@ export interface ProjectFormData {
   skill_ids?: number[];
 }
 
-// Talent Profile Types
-export interface TalentProfile {
-  id: number;
-  user_id: number;
-  user?: User;
-  title?: string;
-  bio?: string;
-  hourly_rate?: number;
-  hourly_rate_currency: string;
-  availability: 'available' | 'busy' | 'not_available';
-  experience_level: 'entry' | 'junior' | 'intermediate' | 'senior' | 'expert';
-  location?: string;
-  is_remote_available: boolean;
-  portfolio_url?: string;
-  linkedin_url?: string;
-  github_url?: string;
-  website_url?: string;
-  skills?: TalentSkill[];
-  experiences?: Experience[];
-  education?: Education[];
-  portfolios?: Portfolio[];
-  rating_average?: number;
-  rating_count?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-// Skill Types
-export interface Skill {
-  id: number;
-  name: string;
-  slug: string;
-  category?: Category;
-  description?: string;
-}
-
-export interface TalentSkill {
-  id: number;
-  skill_id: number;
-  skill?: Skill;
-  proficiency_level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
-  years_of_experience?: number;
-}
-
-// Experience Types
-export interface Experience {
-  id: number;
-  talent_profile_id: number;
-  title: string;
-  company: string;
-  location?: string;
-  is_current: boolean;
-  start_date: string;
-  end_date?: string;
-  description?: string;
-  created_at: string;
-}
-
-// Education Types
-export interface Education {
-  id: number;
-  talent_profile_id: number;
-  degree: string;
-  field_of_study: string;
-  institution: string;
-  location?: string;
-  start_date: string;
-  end_date?: string;
-  description?: string;
-  created_at: string;
-}
-
-// Portfolio Types
-export interface Portfolio {
-  id: number;
-  talent_profile_id: number;
-  title: string;
-  description?: string;
-  url?: string;
-  image_url?: string;
-  project_date?: string;
-  skills?: Skill[];
-  created_at: string;
-}
-
 // Application Types
 export interface Application {
   id: number;
@@ -204,6 +277,36 @@ export interface Category {
   description?: string;
   parent_id?: number;
   icon?: string;
+  talents_count?: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Filter Types (UPDATED for public talent directory)
+export interface TalentFilters {
+  search?: string; // Searches name, professional_title, summary
+  skills?: number[]; // Array of skill IDs
+  skill_ids?: number[]; // Alternative naming
+  category_id?: number;
+  experience_level?: string | string[];
+  availability_status?: string | string[];
+  availability_types?: string[]; // JSON field filter
+  min_rate?: number;
+  max_rate?: number;
+  hourly_rate_min?: number;
+  hourly_rate_max?: number;
+  location?: string; // City, state, or country
+  city?: string;
+  state?: string;
+  country?: string;
+  languages?: string[];
+  is_featured?: boolean;
+  is_available?: boolean;
+  sort_by?: 'created_at' | 'hourly_rate_min' | 'average_rating' | 'profile_views' | 'name';
+  sort_order?: 'asc' | 'desc';
+  per_page?: number;
+  page?: number;
 }
 
 // Search Types
@@ -266,6 +369,50 @@ export interface ApiResponse<T = any> {
   data?: T;
   message?: string;
   errors?: Record<string, string[]>;
+}
+
+// Specific API Response Types
+export interface TalentProfileResponse {
+  success: boolean;
+  data: {
+    talent: TalentProfile;
+    stats: TalentStats;
+  };
+}
+
+export interface TalentListResponse {
+  success: boolean;
+  data: PaginatedResponse<TalentProfile>;
+}
+
+// Talent Skills API Payloads
+export interface CreateTalentSkillPayload {
+  skill_id: number;
+  description?: string;
+  proficiency_level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+  years_of_experience?: number;
+  certifications?: Array<{
+    name: string;
+    issuer?: string;
+    date?: string;
+    url?: string;
+  }>;
+  image?: File;
+  video_url?: string;
+  is_primary?: boolean;
+  display_order?: number;
+  show_on_profile?: boolean;
+}
+
+export interface UpdateTalentSkillPayload extends Partial<CreateTalentSkillPayload> {
+  _method?: 'PUT'; // For Laravel
+}
+
+export interface ReorderSkillsPayload {
+  skills: Array<{
+    id: number;
+    display_order: number;
+  }>;
 }
 
 // Message Types
