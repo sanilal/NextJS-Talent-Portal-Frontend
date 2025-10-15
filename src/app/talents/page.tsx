@@ -1,334 +1,613 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { api } from '@/lib/api/axios';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { 
+  Search, 
+  Filter, 
+  MapPin, 
+  DollarSign, 
+  Star,
+  Grid3x3,
+  List,
+  X,
+  ChevronDown,
+  Briefcase
+} from 'lucide-react';
+import { talentsAPI, publicTalentsAPI } from '@/lib/api/talents';
+import type { TalentProfile, TalentFilters, Skill, Category } from '@/types';
 
-export default function TalentDirectory() {
+export default function TalentsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [talents, setTalents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState([]);
-  const [skills, setSkills] = useState([]);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Filter states
-  const [filters, setFilters] = useState({
-    category: searchParams.get('category') || '',
-    skills: searchParams.get('skills')?.split(',') || [],
-    experience_level: searchParams.get('experience') || '',
-    availability: searchParams.get('availability') || '',
-    min_rate: searchParams.get('min_rate') || '',
-    max_rate: searchParams.get('max_rate') || '',
-    search: searchParams.get('q') || '',
+  // Initialize filters from URL params
+  const [filters, setFilters] = useState<TalentFilters>(() => {
+    const skills = searchParams.get('skills');
+    return {
+      search: searchParams.get('search') || '',
+      skills: skills ? skills.split(',').map(Number) : undefined,
+      category_id: searchParams.get('category_id') ? Number(searchParams.get('category_id')) : undefined,
+      experience_level: searchParams.get('experience_level') || undefined,
+      availability_status: searchParams.get('availability_status') || undefined,
+      min_rate: searchParams.get('min_rate') ? Number(searchParams.get('min_rate')) : undefined,
+      max_rate: searchParams.get('max_rate') ? Number(searchParams.get('max_rate')) : undefined,
+      location: searchParams.get('location') || undefined,
+      is_available: searchParams.get('is_available') === 'true' ? true : undefined,
+      sort_by: (searchParams.get('sort_by') as any) || 'created_at',
+      sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'desc',
+      page: Number(searchParams.get('page')) || 1,
+      per_page: 12,
+    };
   });
 
+  // Fetch talents with filters
+  const { data: talentsResponse, isLoading } = useQuery({
+    queryKey: ['public-talents', filters],
+    queryFn: () => publicTalentsAPI.list(filters),
+    keepPreviousData: true,
+  });
+
+  // Fetch skills for filter dropdown
+  const { data: skillsResponse } = useQuery({
+    queryKey: ['public-skills'],
+    queryFn: () => publicTalentsAPI.skills(),
+  });
+
+  // Fetch categories for filter dropdown
+  const { data: categoriesResponse } = useQuery({
+    queryKey: ['public-categories'],
+    queryFn: () => publicTalentsAPI.categories(),
+  });
+
+  const talents = talentsResponse?.data?.data || [];
+  const pagination = talentsResponse?.data;
+  const skills = skillsResponse?.data || [];
+  const categories = categoriesResponse?.data || [];
+
+  // Update URL when filters change
   useEffect(() => {
-    fetchInitialData();
-  }, []);
-
-  useEffect(() => {
-    searchTalents();
-  }, [filters]);
-
-  const fetchInitialData = async () => {
-    try {
-      const [categoriesRes, skillsRes] = await Promise.all([
-        api.get('/api/v1/public/categories'),
-        api.get('/api/v1/public/skills'),
-      ]);
-      setCategories(categoriesRes.data);
-      setSkills(skillsRes.data);
-    } catch (error) {
-      console.error('Error fetching initial data:', error);
-    }
-  };
-
-  const searchTalents = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get('/api/v1/public/talents', {
-        params: {
-          ...filters,
-          skills: filters.skills.join(','),
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        if (Array.isArray(value)) {
+          params.set(key, value.join(','));
+        } else {
+          params.set(key, String(value));
         }
-      });
-      setTalents(response.data.data || response.data);
-    } catch (error) {
-      console.error('Error searching talents:', error);
-      setTalents([]);
-    } finally {
-      setLoading(false);
-    }
+      }
+    });
+    router.push(`?${params.toString()}`, { scroll: false });
+  }, [filters, router]);
+
+  const handleFilterChange = (key: keyof TalentFilters, value: any) => {
+    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
   };
 
-  const updateFilter = (key: string, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+  const toggleSkill = (skillId: number) => {
+    setFilters(prev => {
+      const currentSkills = prev.skills || [];
+      const newSkills = currentSkills.includes(skillId)
+        ? currentSkills.filter(id => id !== skillId)
+        : [...currentSkills, skillId];
+      return { ...prev, skills: newSkills.length > 0 ? newSkills : undefined, page: 1 };
+    });
   };
 
   const clearFilters = () => {
-    setFilters({
-      category: '',
-      skills: [],
-      experience_level: '',
-      availability: '',
-      min_rate: '',
-      max_rate: '',
-      search: '',
+    setFilters({ 
+      page: 1, 
+      per_page: 12,
+      sort_by: 'created_at',
+      sort_order: 'desc',
     });
   };
+
+  const hasActiveFilters = Object.keys(filters).some(
+    key => !['page', 'per_page', 'sort_by', 'sort_order'].includes(key) && 
+           filters[key as keyof TalentFilters] !== undefined
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <h1 className="text-4xl font-bold text-gray-900">Talent Bank</h1>
-          <p className="text-gray-600 mt-2">
-            Discover talented professionals for your next project
+          <h1 className="text-3xl font-bold text-gray-900">Find Talented Professionals</h1>
+          <p className="mt-2 text-gray-600">
+            Browse {pagination?.total || 0} talented professionals ready for your next project
           </p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="lg:grid lg:grid-cols-4 lg:gap-8">
-          {/* Filters Sidebar */}
-          <aside className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow p-6 sticky top-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
-                <button
-                  onClick={clearFilters}
-                  className="text-sm text-blue-600 hover:text-blue-700"
-                >
-                  Clear All
-                </button>
-              </div>
-
-              {/* Search */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Search
-                </label>
+        {/* Search and Filter Bar */}
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search Input */}
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
-                  value={filters.search}
-                  onChange={(e) => updateFilter('search', e.target.value)}
-                  placeholder="Name, title, skills..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Search by name, title, or skills..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={filters.search || ''}
+                  onChange={(e) => handleFilterChange('search', e.target.value)}
                 />
               </div>
+            </div>
 
-              {/* Category */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Category
-                </label>
-                <select
-                  value={filters.category}
-                  onChange={(e) => updateFilter('category', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">All Categories</option>
-                  {categories.map((cat: any) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {/* Sort By */}
+            <select
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              value={`${filters.sort_by}-${filters.sort_order}`}
+              onChange={(e) => {
+                const [sortBy, sortOrder] = e.target.value.split('-');
+                setFilters(prev => ({ 
+                  ...prev, 
+                  sort_by: sortBy as any, 
+                  sort_order: sortOrder as 'asc' | 'desc' 
+                }));
+              }}
+            >
+              <option value="created_at-desc">Newest First</option>
+              <option value="created_at-asc">Oldest First</option>
+              <option value="name-asc">Name (A-Z)</option>
+              <option value="name-desc">Name (Z-A)</option>
+              <option value="hourly_rate_min-asc">Rate (Low to High)</option>
+              <option value="hourly_rate_min-desc">Rate (High to Low)</option>
+              <option value="average_rating-desc">Highest Rated</option>
+              <option value="profile_views-desc">Most Viewed</option>
+            </select>
 
-              {/* Experience Level */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Experience Level
-                </label>
-                <select
-                  value={filters.experience_level}
-                  onChange={(e) => updateFilter('experience_level', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Any Level</option>
-                  <option value="entry">Entry</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="expert">Expert</option>
-                  <option value="senior">Senior</option>
-                </select>
-              </div>
+            {/* Filter Button */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              <Filter className="w-5 h-5" />
+              Filters
+              {hasActiveFilters && (
+                <span className="bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  !
+                </span>
+              )}
+              <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+            </button>
 
-              {/* Availability */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Availability
-                </label>
-                <select
-                  value={filters.availability}
-                  onChange={(e) => updateFilter('availability', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Any</option>
-                  <option value="available">Available Now</option>
-                  <option value="unavailable">Not Available</option>
-                </select>
-              </div>
+            {/* View Mode Toggle */}
+            <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 ${viewMode === 'grid' ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+                title="Grid view"
+              >
+                <Grid3x3 className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 ${viewMode === 'list' ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+                title="List view"
+              >
+                <List className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
 
-              {/* Hourly Rate Range */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Hourly Rate ($)
-                </label>
-                <div className="grid grid-cols-2 gap-2">
+          {/* Expandable Filters */}
+          {showFilters && (
+            <div className="mt-4 pt-4 border-t space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Category */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Category
+                  </label>
+                  <select
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    value={filters.category_id || ''}
+                    onChange={(e) => handleFilterChange('category_id', e.target.value ? Number(e.target.value) : undefined)}
+                  >
+                    <option value="">All Categories</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.icon} {cat.name} {cat.talents_count ? `(${cat.talents_count})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Experience Level */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Experience Level
+                  </label>
+                  <select
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    value={filters.experience_level || ''}
+                    onChange={(e) => handleFilterChange('experience_level', e.target.value || undefined)}
+                  >
+                    <option value="">All Levels</option>
+                    <option value="entry">Entry Level</option>
+                    <option value="junior">Junior</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="senior">Senior</option>
+                    <option value="expert">Expert</option>
+                  </select>
+                </div>
+
+                {/* Availability */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Availability
+                  </label>
+                  <select
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    value={filters.availability_status || ''}
+                    onChange={(e) => handleFilterChange('availability_status', e.target.value || undefined)}
+                  >
+                    <option value="">All</option>
+                    <option value="available">Available</option>
+                    <option value="busy">Busy</option>
+                    <option value="not_available">Not Available</option>
+                  </select>
+                </div>
+
+                {/* Location */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Location
+                  </label>
                   <input
-                    type="number"
-                    value={filters.min_rate}
-                    onChange={(e) => updateFilter('min_rate', e.target.value)}
-                    placeholder="Min"
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    type="text"
+                    placeholder="City, State, or Country"
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    value={filters.location || ''}
+                    onChange={(e) => handleFilterChange('location', e.target.value || undefined)}
                   />
+                </div>
+
+                {/* Min Rate */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Min Rate ($/hr)
+                  </label>
                   <input
                     type="number"
-                    value={filters.max_rate}
-                    onChange={(e) => updateFilter('max_rate', e.target.value)}
-                    placeholder="Max"
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="0"
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    value={filters.min_rate || ''}
+                    onChange={(e) => handleFilterChange('min_rate', e.target.value ? Number(e.target.value) : undefined)}
+                  />
+                </div>
+
+                {/* Max Rate */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Max Rate ($/hr)
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="1000"
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    value={filters.max_rate || ''}
+                    onChange={(e) => handleFilterChange('max_rate', e.target.value ? Number(e.target.value) : undefined)}
                   />
                 </div>
               </div>
 
-              {/* Results Count */}
-              <div className="pt-4 border-t">
-                <p className="text-sm text-gray-600">
-                  <span className="font-semibold">{talents.length}</span> talents found
-                </p>
+              {/* Skills Multi-Select */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Skills
+                </label>
+                <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-3 border border-gray-300 rounded-lg bg-gray-50">
+                  {skills.filter(s => s.is_active).map((skill) => (
+                    <button
+                      key={skill.id}
+                      onClick={() => toggleSkill(skill.id)}
+                      className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                        filters.skills?.includes(skill.id)
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-500'
+                      }`}
+                    >
+                      {skill.icon} {skill.name}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          </aside>
 
-          {/* Talents Grid */}
-          <main className="lg:col-span-3 mt-8 lg:mt-0">
-            {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[1, 2, 3, 4, 5, 6].map(i => (
-                  <div key={i} className="bg-white rounded-lg shadow animate-pulse">
-                    <div className="h-64 bg-gray-200 rounded-t-lg"></div>
-                    <div className="p-4 space-y-3">
-                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                  </div>
-                ))}
+              {/* Available Only Toggle */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="available-only"
+                  checked={filters.is_available === true}
+                  onChange={(e) => handleFilterChange('is_available', e.target.checked ? true : undefined)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="available-only" className="text-sm text-gray-700">
+                  Show only available talents
+                </label>
               </div>
-            ) : talents.length === 0 ? (
-              <div className="bg-white rounded-lg shadow p-12 text-center">
-                <div className="text-gray-400 text-5xl mb-4">🔍</div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  No talents found
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Try adjusting your filters or search terms
-                </p>
+
+              {/* Clear Filters Button */}
+              {hasActiveFilters && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={clearFilters}
+                    className="flex items-center gap-2 px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50"
+                  >
+                    <X className="w-4 h-4" />
+                    Clear All Filters
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Results */}
+        {isLoading ? (
+          <div className={viewMode === 'grid' 
+            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+            : 'space-y-4'
+          }>
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white rounded-lg shadow-sm p-6 animate-pulse">
+                <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4" />
+                <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto mb-2" />
+                <div className="h-3 bg-gray-200 rounded w-1/2 mx-auto" />
+              </div>
+            ))}
+          </div>
+        ) : talents.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-lg shadow-sm">
+            <div className="text-6xl mb-4">🔍</div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              No talents found
+            </h3>
+            <p className="text-gray-500 mb-4">
+              Try adjusting your filters or search terms
+            </p>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Talent Grid/List */}
+            <div className={viewMode === 'grid' 
+              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' 
+              : 'space-y-4'
+            }>
+              {talents.map((talent) => (
+                <TalentCard key={talent.id} talent={talent} viewMode={viewMode} />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {pagination && pagination.last_page > 1 && (
+              <div className="mt-8 flex justify-center items-center gap-2">
                 <button
-                  onClick={clearFilters}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  disabled={pagination.current_page === 1}
+                  onClick={() => handleFilterChange('page', pagination.current_page - 1)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
-                  Clear Filters
+                  Previous
+                </button>
+                
+                {/* Page numbers */}
+                <div className="flex gap-1">
+                  {[...Array(Math.min(5, pagination.last_page))].map((_, i) => {
+                    let pageNum;
+                    if (pagination.last_page <= 5) {
+                      pageNum = i + 1;
+                    } else if (pagination.current_page <= 3) {
+                      pageNum = i + 1;
+                    } else if (pagination.current_page >= pagination.last_page - 2) {
+                      pageNum = pagination.last_page - 4 + i;
+                    } else {
+                      pageNum = pagination.current_page - 2 + i;
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handleFilterChange('page', pageNum)}
+                        className={`px-4 py-2 border rounded-lg ${
+                          pageNum === pagination.current_page
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                <button
+                  disabled={pagination.current_page === pagination.last_page}
+                  onClick={() => handleFilterChange('page', pagination.current_page + 1)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  Next
                 </button>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {talents.map((talent: any) => (
-                  <TalentCard key={talent.id} talent={talent} />
-                ))}
-              </div>
             )}
-          </main>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-function TalentCard({ talent }: { talent: any }) {
-  const router = useRouter();
-  const profile = talent.talentProfile || talent.talent_profile;
+// Talent Card Component
+function TalentCard({ 
+  talent, 
+  viewMode 
+}: { 
+  talent: TalentProfile; 
+  viewMode: 'grid' | 'list' 
+}) {
+  const primarySkill = talent.skills?.find(s => s.is_primary);
+  const skillsList = talent.skills || [];
+  
+  const availabilityConfig = {
+    available: { color: 'bg-green-100 text-green-800', label: 'Available' },
+    busy: { color: 'bg-yellow-100 text-yellow-800', label: 'Busy' },
+    not_available: { color: 'bg-red-100 text-red-800', label: 'Not Available' },
+  };
+  
+  const availability = availabilityConfig[talent.is_available ? 'available' : 'not_available'];
 
-  return (
-    <div
-      onClick={() => router.push(`/talents/${talent.id}`)}
-      className="bg-white rounded-lg shadow hover:shadow-xl transition-shadow cursor-pointer overflow-hidden group"
-    >
-      {/* Avatar/Photo */}
-      <div className="relative h-64 bg-gradient-to-br from-blue-100 to-purple-100 overflow-hidden">
-        {profile?.avatar_url ? (
+  if (viewMode === 'list') {
+    return (
+      <Link href={`/talents/${talent.id}`}>
+        <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow flex gap-6">
           <img
-            src={`${process.env.NEXT_PUBLIC_API_URL}/storage/${profile.avatar_url}`}
-            alt={talent.first_name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            src={talent.user?.avatar_url || '/default-avatar.png'}
+            alt={`${talent.user?.first_name} ${talent.user?.last_name}`}
+            className="w-24 h-24 rounded-full object-cover flex-shrink-0"
           />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-6xl text-gray-400">
-            {talent.first_name?.charAt(0)}{talent.last_name?.charAt(0)}
+          <div className="flex-1">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">
+                  {talent.user?.first_name} {talent.user?.last_name}
+                </h3>
+                <p className="text-gray-600">
+                  {talent.professional_title || primarySkill?.skill?.name || 'Professional'}
+                </p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-sm ${availability.color}`}>
+                {availability.label}
+              </span>
+            </div>
+            
+            {talent.summary && (
+              <p className="mt-2 text-gray-600 line-clamp-2">{talent.summary}</p>
+            )}
+            
+            <div className="mt-4 flex flex-wrap gap-2">
+              {skillsList.filter(ts => ts.show_on_profile).slice(0, 5).map((ts) => (
+                <span
+                  key={ts.id}
+                  className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm"
+                >
+                  {ts.skill?.icon} {ts.skill?.name}
+                </span>
+              ))}
+              {skillsList.filter(ts => ts.show_on_profile).length > 5 && (
+                <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm">
+                  +{skillsList.filter(ts => ts.show_on_profile).length - 5} more
+                </span>
+              )}
+            </div>
+            
+            <div className="mt-4 flex items-center gap-6 text-sm text-gray-600">
+              {talent.experience_level && (
+                <span className="flex items-center gap-1 capitalize">
+                  <Briefcase className="w-4 h-4" />
+                  {talent.experience_level}
+                </span>
+              )}
+              {talent.hourly_rate_min && (
+                <span className="flex items-center gap-1 font-semibold text-gray-900">
+                  <DollarSign className="w-4 h-4" />
+                  ${talent.hourly_rate_min}
+                  {talent.hourly_rate_max && talent.hourly_rate_max !== talent.hourly_rate_min && 
+                    `-$${talent.hourly_rate_max}`
+                  }/hr
+                </span>
+              )}
+              {talent.average_rating && (
+                <span className="flex items-center gap-1">
+                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                  {talent.average_rating.toFixed(1)} ({talent.total_ratings})
+                </span>
+              )}
+            </div>
           </div>
-        )}
-        
-        {/* Availability Badge */}
-        {profile?.is_available && (
-          <div className="absolute top-3 right-3 px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full">
-            Available
-          </div>
-        )}
-      </div>
-
-      {/* Info */}
-      <div className="p-4">
-        <h3 className="text-lg font-bold text-gray-900 mb-1 truncate">
-          {talent.first_name} {talent.last_name}
-        </h3>
-        
-        {profile?.professional_title && (
-          <p className="text-sm text-gray-600 mb-3 truncate">
-            {profile.professional_title}
-          </p>
-        )}
-
-        {/* Stats Row */}
-        <div className="flex items-center justify-between text-sm mb-3">
-          {profile?.experience_level && (
-            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium capitalize">
-              {profile.experience_level}
-            </span>
-          )}
-          {profile?.hourly_rate_min && (
-            <span className="font-semibold text-gray-900">
-              ${profile.hourly_rate_min}/hr
-            </span>
-          )}
         </div>
+      </Link>
+    );
+  }
 
-        {/* Skills */}
-        {talent.skills && talent.skills.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
-            {talent.skills.slice(0, 3).map((skill: any, idx: number) => (
+  // Grid view
+  return (
+    <Link href={`/talents/${talent.id}`}>
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow group">
+        <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600">
+          <span className={`absolute top-4 right-4 px-3 py-1 rounded-full text-sm ${availability.color}`}>
+            {availability.label}
+          </span>
+        </div>
+        
+        <div className="p-6 text-center">
+          <img
+            src={talent.user?.avatar_url || '/default-avatar.png'}
+            alt={`${talent.user?.first_name} ${talent.user?.last_name}`}
+            className="w-24 h-24 rounded-full border-4 border-white mx-auto -mt-16 mb-4 object-cover"
+          />
+          
+          <h3 className="text-xl font-semibold text-gray-900">
+            {talent.user?.first_name} {talent.user?.last_name}
+          </h3>
+          <p className="text-gray-600 mt-1">
+            {talent.professional_title || primarySkill?.skill?.name || 'Professional'}
+          </p>
+          
+          {talent.summary && (
+            <p className="mt-3 text-gray-600 text-sm line-clamp-2">{talent.summary}</p>
+          )}
+          
+          <div className="mt-4 flex flex-wrap gap-2 justify-center">
+            {skillsList.filter(ts => ts.show_on_profile).slice(0, 3).map((ts) => (
               <span
-                key={idx}
-                className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
+                key={ts.id}
+                className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs"
               >
-                {skill.skill?.name || skill.name}
+                {ts.skill?.icon} {ts.skill?.name}
               </span>
             ))}
-            {talent.skills.length > 3 && (
-              <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
-                +{talent.skills.length - 3}
+            {skillsList.filter(ts => ts.show_on_profile).length > 3 && (
+              <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
+                +{skillsList.filter(ts => ts.show_on_profile).length - 3}
               </span>
             )}
           </div>
-        )}
-
-        {/* View Profile Button */}
-        <button className="w-full mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm group-hover:bg-blue-700 transition-colors">
-          View Profile →
-        </button>
+          
+          <div className="mt-4 flex items-center justify-center gap-4 text-sm text-gray-600">
+            {talent.experience_level && (
+              <span className="capitalize">{talent.experience_level}</span>
+            )}
+            {talent.hourly_rate_min && (
+              <span className="font-semibold text-gray-900">
+                ${talent.hourly_rate_min}/hr
+              </span>
+            )}
+            {talent.average_rating && (
+              <span className="flex items-center gap-1">
+                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                {talent.average_rating.toFixed(1)}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </Link>
   );
 }
