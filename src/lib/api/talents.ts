@@ -5,15 +5,25 @@ import type {
   Experience, 
   Education, 
   Portfolio,
-  ApiResponse 
+  Skill,
+  Category,
+  ApiResponse,
+  PaginatedResponse,
+  TalentFilters,
+  TalentStats,
+  CreateTalentSkillPayload,
+  UpdateTalentSkillPayload,
+  ReorderSkillsPayload
 } from '@/types';
 
 export const talentsAPI = {
+  // ============= Profile =============
+
   /**
    * Get talent profile
    */
   getProfile: async () => {
-    const response = await api.get<TalentProfile>('/talent/profile');
+    const response = await api.get<ApiResponse<TalentProfile>>('/talent/profile');
     return response.data;
   },
 
@@ -21,7 +31,7 @@ export const talentsAPI = {
    * Update talent profile
    */
   updateProfile: async (data: Partial<TalentProfile>) => {
-    const response = await api.put<TalentProfile>('/talent/profile', data);
+    const response = await api.put<ApiResponse<TalentProfile>>('/talent/profile', data);
     return response.data;
   },
 
@@ -44,41 +54,162 @@ export const talentsAPI = {
     return response.data;
   },
 
-  // ============= Skills =============
+  // ============= Skills ============= (UPDATED)
 
   /**
-   * Get talent skills
+   * Get current user's skills
    */
   getSkills: async () => {
-    const response = await api.get<TalentSkill[]>('/talent/skills');
+    const response = await api.get<ApiResponse<TalentSkill[]>>('/talent/skills');
     return response.data;
   },
 
   /**
-   * Add skill
+   * Get a specific skill
    */
-  addSkill: async (data: {
-    skill_id: number;
-    proficiency_level: string;
-    years_of_experience?: number;
-  }) => {
-    const response = await api.post<TalentSkill>('/talent/skills', data);
+  getSkill: async (id: number) => {
+    const response = await api.get<ApiResponse<TalentSkill>>(`/talent/skills/${id}`);
     return response.data;
   },
 
   /**
-   * Update skill
+   * Add a new skill with optional image
    */
-  updateSkill: async (id: number, data: Partial<TalentSkill>) => {
-    const response = await api.put<TalentSkill>(`/talent/skills/${id}`, data);
+  addSkill: async (skillData: CreateTalentSkillPayload) => {
+    const formData = new FormData();
+    
+    // Add all fields to FormData
+    formData.append('skill_id', String(skillData.skill_id));
+    
+    if (skillData.description) {
+      formData.append('description', skillData.description);
+    }
+    
+    if (skillData.proficiency_level) {
+      formData.append('proficiency_level', skillData.proficiency_level);
+    }
+    
+    if (skillData.years_of_experience !== undefined) {
+      formData.append('years_of_experience', String(skillData.years_of_experience));
+    }
+    
+    if (skillData.certifications) {
+      formData.append('certifications', JSON.stringify(skillData.certifications));
+    }
+    
+    if (skillData.image instanceof File) {
+      formData.append('image', skillData.image);
+    }
+    
+    if (skillData.video_url) {
+      formData.append('video_url', skillData.video_url);
+    }
+    
+    if (skillData.is_primary !== undefined) {
+      formData.append('is_primary', String(skillData.is_primary));
+    }
+    
+    if (skillData.display_order !== undefined) {
+      formData.append('display_order', String(skillData.display_order));
+    }
+    
+    if (skillData.show_on_profile !== undefined) {
+      formData.append('show_on_profile', String(skillData.show_on_profile));
+    }
+
+    const response = await api.post<ApiResponse<TalentSkill>>(
+      '/talent/skills', 
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
     return response.data;
   },
 
   /**
-   * Delete skill
+   * Update an existing skill
+   */
+  updateSkill: async (id: number, skillData: UpdateTalentSkillPayload) => {
+    const formData = new FormData();
+    
+    // Laravel requires _method for multipart PUT
+    formData.append('_method', 'PUT');
+    
+    // Add all provided fields
+    if (skillData.description !== undefined) {
+      formData.append('description', skillData.description);
+    }
+    
+    if (skillData.proficiency_level) {
+      formData.append('proficiency_level', skillData.proficiency_level);
+    }
+    
+    if (skillData.years_of_experience !== undefined) {
+      formData.append('years_of_experience', String(skillData.years_of_experience));
+    }
+    
+    if (skillData.certifications) {
+      formData.append('certifications', JSON.stringify(skillData.certifications));
+    }
+    
+    if (skillData.image instanceof File) {
+      formData.append('image', skillData.image);
+    }
+    
+    if (skillData.video_url !== undefined) {
+      formData.append('video_url', skillData.video_url);
+    }
+    
+    if (skillData.is_primary !== undefined) {
+      formData.append('is_primary', String(skillData.is_primary));
+    }
+    
+    if (skillData.display_order !== undefined) {
+      formData.append('display_order', String(skillData.display_order));
+    }
+    
+    if (skillData.show_on_profile !== undefined) {
+      formData.append('show_on_profile', String(skillData.show_on_profile));
+    }
+
+    const response = await api.post<ApiResponse<TalentSkill>>(
+      `/talent/skills/${id}`, 
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Delete a skill
    */
   deleteSkill: async (id: number) => {
     const response = await api.delete<ApiResponse>(`/talent/skills/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Reorder skills (batch update display_order)
+   */
+  reorderSkills: async (payload: ReorderSkillsPayload) => {
+    const response = await api.post<ApiResponse>('/talent/skills/reorder', payload);
+    return response.data;
+  },
+
+  /**
+   * Set a skill as primary
+   */
+  setPrimarySkill: async (id: number) => {
+    const response = await api.post<ApiResponse<TalentSkill>>(
+      `/talent/skills/${id}/set-primary`
+    );
     return response.data;
   },
 
@@ -88,7 +219,7 @@ export const talentsAPI = {
    * Get experiences
    */
   getExperiences: async () => {
-    const response = await api.get<Experience[]>('/talent/experiences');
+    const response = await api.get<ApiResponse<Experience[]>>('/talent/experiences');
     return response.data;
   },
 
@@ -96,7 +227,7 @@ export const talentsAPI = {
    * Add experience
    */
   addExperience: async (data: Partial<Experience>) => {
-    const response = await api.post<Experience>('/talent/experiences', data);
+    const response = await api.post<ApiResponse<Experience>>('/talent/experiences', data);
     return response.data;
   },
 
@@ -104,7 +235,10 @@ export const talentsAPI = {
    * Update experience
    */
   updateExperience: async (id: number, data: Partial<Experience>) => {
-    const response = await api.put<Experience>(`/talent/experiences/${id}`, data);
+    const response = await api.put<ApiResponse<Experience>>(
+      `/talent/experiences/${id}`, 
+      data
+    );
     return response.data;
   },
 
@@ -122,7 +256,7 @@ export const talentsAPI = {
    * Get education
    */
   getEducation: async () => {
-    const response = await api.get<Education[]>('/talent/education');
+    const response = await api.get<ApiResponse<Education[]>>('/talent/education');
     return response.data;
   },
 
@@ -130,7 +264,7 @@ export const talentsAPI = {
    * Add education
    */
   addEducation: async (data: Partial<Education>) => {
-    const response = await api.post<Education>('/talent/education', data);
+    const response = await api.post<ApiResponse<Education>>('/talent/education', data);
     return response.data;
   },
 
@@ -138,7 +272,10 @@ export const talentsAPI = {
    * Update education
    */
   updateEducation: async (id: number, data: Partial<Education>) => {
-    const response = await api.put<Education>(`/talent/education/${id}`, data);
+    const response = await api.put<ApiResponse<Education>>(
+      `/talent/education/${id}`, 
+      data
+    );
     return response.data;
   },
 
@@ -156,7 +293,7 @@ export const talentsAPI = {
    * Get portfolios
    */
   getPortfolios: async () => {
-    const response = await api.get<Portfolio[]>('/talent/portfolios');
+    const response = await api.get<ApiResponse<Portfolio[]>>('/talent/portfolios');
     return response.data;
   },
 
@@ -184,21 +321,120 @@ export const talentsAPI = {
     return response.data;
   },
 
-  // ============= Public =============
+  // ============= Public Endpoints ============= (UPDATED)
 
   /**
-   * Get public talent profile
+   * Get public talent directory with filters
    */
-  getPublicProfile: async (id: number) => {
-    const response = await api.get<TalentProfile>(`/public/talents/${id}`);
+  getPublicTalents: async (filters?: TalentFilters) => {
+    const response = await api.get<ApiResponse<PaginatedResponse<TalentProfile>>>(
+      '/public/talents', 
+      { params: filters }
+    );
     return response.data;
   },
 
   /**
-   * Search public talents
+   * Get individual public talent profile with stats
+   */
+  getPublicTalent: async (id: number | string) => {
+    const response = await api.get<ApiResponse<{
+      talent: TalentProfile;
+      stats: TalentStats;
+    }>>(`/public/talents/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Get all available skills (public)
+   */
+  getPublicSkills: async () => {
+    const response = await api.get<ApiResponse<Skill[]>>('/public/skills');
+    return response.data;
+  },
+
+  /**
+   * Get all categories with talent counts (public)
+   */
+  getPublicCategories: async () => {
+    const response = await api.get<ApiResponse<Category[]>>('/public/categories');
+    return response.data;
+  },
+
+  /**
+   * Global search (talents, skills, projects)
+   */
+  globalSearch: async (query: string) => {
+    const response = await api.get<ApiResponse<{
+      talents: TalentProfile[];
+      skills: Skill[];
+      projects?: any[];
+    }>>('/public/search', { params: { q: query } });
+    return response.data;
+  },
+
+  /**
+   * @deprecated Use getPublicTalents instead
    */
   searchPublicTalents: async (params?: any) => {
-    const response = await api.get('/public/talents', { params });
-    return response.data;
+    console.warn('searchPublicTalents is deprecated, use getPublicTalents instead');
+    return talentsAPI.getPublicTalents(params);
+  },
+
+  /**
+   * @deprecated Use getPublicTalent instead
+   */
+  getPublicProfile: async (id: number) => {
+    console.warn('getPublicProfile is deprecated, use getPublicTalent instead');
+    return talentsAPI.getPublicTalent(id);
   },
 };
+
+// Export individual namespaces if preferred
+export const profileAPI = {
+  get: talentsAPI.getProfile,
+  update: talentsAPI.updateProfile,
+  uploadAvatar: talentsAPI.uploadAvatar,
+  getDashboard: talentsAPI.getDashboard,
+};
+
+export const skillsAPI = {
+  list: talentsAPI.getSkills,
+  get: talentsAPI.getSkill,
+  create: talentsAPI.addSkill,
+  update: talentsAPI.updateSkill,
+  delete: talentsAPI.deleteSkill,
+  reorder: talentsAPI.reorderSkills,
+  setPrimary: talentsAPI.setPrimarySkill,
+};
+
+export const experiencesAPI = {
+  list: talentsAPI.getExperiences,
+  create: talentsAPI.addExperience,
+  update: talentsAPI.updateExperience,
+  delete: talentsAPI.deleteExperience,
+};
+
+export const educationAPI = {
+  list: talentsAPI.getEducation,
+  create: talentsAPI.addEducation,
+  update: talentsAPI.updateEducation,
+  delete: talentsAPI.deleteEducation,
+};
+
+export const portfoliosAPI = {
+  list: talentsAPI.getPortfolios,
+  create: talentsAPI.addPortfolio,
+  update: talentsAPI.updatePortfolio,
+  delete: talentsAPI.deletePortfolio,
+};
+
+export const publicTalentsAPI = {
+  list: talentsAPI.getPublicTalents,
+  get: talentsAPI.getPublicTalent,
+  skills: talentsAPI.getPublicSkills,
+  categories: talentsAPI.getPublicCategories,
+  search: talentsAPI.globalSearch,
+};
+
+export default talentsAPI;
