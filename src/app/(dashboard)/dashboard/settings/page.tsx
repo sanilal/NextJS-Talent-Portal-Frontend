@@ -77,6 +77,7 @@ export default function SettingsPage() {
     },
   });
 
+
   const tabs = [
     { id: 'account', label: 'Account', icon: User },
     { id: 'security', label: 'Security', icon: Shield },

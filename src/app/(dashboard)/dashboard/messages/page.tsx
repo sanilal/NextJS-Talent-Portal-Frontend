@@ -19,11 +19,13 @@ export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Fetch conversations
-  const { data: conversations, isLoading: conversationsLoading } = useQuery<Conversation[]>({
+  const { data: conversationsData, isLoading: conversationsLoading } = useQuery({
     queryKey: ['conversations'],
     queryFn: messagesAPI.getConversations,
     refetchInterval: 30000, // Refetch every 30 seconds
   });
+
+  const conversations = conversationsData?.conversations || [];
 
   // Fetch messages for selected conversation
   const { data: messagesData, isLoading: messagesLoading } = useQuery({
@@ -76,11 +78,11 @@ export default function MessagesPage() {
     }
   };
 
-  const filteredConversations = conversations?.filter((conv) => {
+  const filteredConversations = conversations.filter((conv) => {
     if (!searchQuery) return true;
     const userName = `${conv.user.first_name} ${conv.user.last_name}`.toLowerCase();
     return userName.includes(searchQuery.toLowerCase());
-  }) || [];
+  });
 
   const selectedConversationData = conversations?.find(
     (conv) => conv.user.id === selectedConversation
