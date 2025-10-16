@@ -4,11 +4,11 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useMutation } from '@tantml:react-query';
+import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Shield, Bell, User, Lock, Save } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { authAPI } from '@/lib/api/auth';
+import { authApi } from '@/lib/api/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -55,7 +55,7 @@ export default function SettingsPage() {
 
   // Update account mutation
   const updateAccountMutation = useMutation({
-    mutationFn: (data: AccountFormValues) => authAPI.updateProfile(data),
+    mutationFn: (data: AccountFormValues) => authApi.updateProfile(data),
     onSuccess: (data) => {
       updateUser(data);
       toast.success('Account updated successfully');
@@ -67,7 +67,7 @@ export default function SettingsPage() {
 
   // Change password mutation
   const changePasswordMutation = useMutation({
-    mutationFn: (data: PasswordFormValues) => authAPI.changePassword(data),
+    mutationFn: (data: PasswordFormValues) => authApi.changePassword(data),
     onSuccess: () => {
       toast.success('Password changed successfully');
       passwordForm.reset();
