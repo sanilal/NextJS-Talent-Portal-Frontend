@@ -1,7 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/store/authStore';
 import { 
   Briefcase, 
   Users, 
@@ -20,37 +21,82 @@ import { Button } from '@/components/ui/button';
 import type { DashboardStats, Application, Project } from '@/types';
 import { VerificationBanner } from '@/components/VerificationBanner';
 
-
-
 export default function RecruiterDashboard() {
+  const { user, token, isAuthenticated, _hasHydrated } = useAuthStore();
 
-  const { user } = useAuthStore();
-  // Fetch dashboard stats
+  useEffect(() => {
+    console.log('🔍 Recruiter Dashboard Auth State:', {
+      user,
+      token: token ? 'EXISTS' : 'NULL',
+      isAuthenticated,
+      hasHydrated: _hasHydrated,
+    });
+  }, [user, token, isAuthenticated, _hasHydrated]);
+
+  // ✅ FIX: Add enabled option to wait for hydration
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ['recruiter-dashboard-stats'],
+    enabled: _hasHydrated && isAuthenticated, // ← Don't run until hydrated!
     queryFn: async () => {
-      const response = await api.get('/recruiter/dashboard');
-      return response.data;
+      console.log('📊 Fetching recruiter stats...');
+      try {
+        const response = await api.get('/recruiter/dashboard');
+        return response.data || {};
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+        return {
+          active_projects: 0,
+          total_applications: 0,
+          pending_applications: 0,
+          total_projects: 0,
+        };
+      }
     },
   });
 
-  // Fetch active projects
+  // ✅ FIX: Add enabled option
   const { data: projects, isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ['active-projects'],
+    enabled: _hasHydrated && isAuthenticated, // ← Wait for hydration!
     queryFn: async () => {
-      const response = await api.get('/projects?status=published&limit=5');
-      return response.data.data;
+      console.log('📂 Fetching projects...');
+      try {
+        const response = await api.get('/projects?status=published&limit=5');
+        return response.data?.data || response.data || [];
+      } catch (error) {
+        console.error('Failed to fetch projects:', error);
+        return [];
+      }
     },
   });
 
-  // Fetch recent applications
+  // ✅ FIX: Add enabled option
   const { data: applications, isLoading: appsLoading } = useQuery<Application[]>({
     queryKey: ['recent-applications-received'],
+    enabled: _hasHydrated && isAuthenticated, // ← Wait for hydration!
     queryFn: async () => {
-      const response = await api.get('/recruiter/applications?limit=5');
-      return response.data.data;
+      console.log('📝 Fetching applications...');
+      try {
+        const response = await api.get('/recruiter/applications?limit=5');
+        return response.data?.data || response.data || [];
+      } catch (error) {
+        console.error('Failed to fetch applications:', error);
+        return [];
+      }
     },
   });
+
+  // ✅ Show loading state while hydrating
+  if (!_hasHydrated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   const statCards = [
     {
@@ -86,25 +132,28 @@ export default function RecruiterDashboard() {
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-         {/* Show banner if user needs verification */}
-          {user?.account_status === 'pending_verification' && (
-            <VerificationBanner />
-          )}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Dashboard
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Manage your projects and review applications
-          </p>
+      <div>
+        {/* Show banner if user needs verification */}
+        {user?.account_status === 'pending_verification' && (
+          <VerificationBanner />
+        )}
+        
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              Dashboard
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-2">
+              Manage your projects and review applications
+            </p>
+          </div>
+          <Link href="/dashboard/projects/create">
+            <Button size="lg">
+              <Plus className="h-5 w-5 mr-2" />
+              Post New Project
+            </Button>
+          </Link>
         </div>
-        <Link href="/dashboard/projects/create">
-          <Button size="lg">
-            <Plus className="h-5 w-5 mr-2" />
-            Post New Project
-          </Button>
-        </Link>
       </div>
 
       {/* Stats Grid */}
