@@ -1,140 +1,39 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { toast } from 'sonner';
-import { 
-  User, 
-  Mail, 
-  MapPin, 
-  Briefcase, 
-  DollarSign,
-  Edit,
-  Save,
-  X,
-  Plus,
-  Trash2,
-  Upload
-} from 'lucide-react';
-import { talentsAPI } from '@/lib/api/talents';
-import api from '@/lib/api/axios';
+import { useQuery } from '@tanstack/react-query';
+import { useAuthStore } from '@/store/authStore';
+import { Edit, Mail, MapPin, DollarSign, Briefcase, Award, GraduationCap } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { SkillsSection } from '@/components/profile/SkillsSection';
-import { ExperienceSection } from '@/components/profile/ExperienceSection';
-import { EducationSection } from '@/components/profile/EducationSection';
-import type { TalentProfile, Skill, TalentSkill, Experience, Education, Portfolio } from '@/types';
+import api from '@/lib/api/axios';
 
-const profileSchema = z.object({
-  title: z.string().optional(),
-  bio: z.string().optional(),
-  hourly_rate: z.number().min(0).optional(),
-  hourly_rate_currency: z.string().default('USD'),
-  availability: z.enum(['available', 'busy', 'not_available']),
-  experience_level: z.enum(['entry', 'junior', 'intermediate', 'senior', 'expert']),
-  location: z.string().optional(),
-  is_remote_available: z.boolean().default(false),
-  portfolio_url: z.string().url().optional().or(z.literal('')),
-  linkedin_url: z.string().url().optional().or(z.literal('')),
-  github_url: z.string().url().optional().or(z.literal('')),
-  website_url: z.string().url().optional().or(z.literal('')),
-});
+export default function ProfilePage() {
+  const { user } = useAuthStore();
 
-type ProfileFormValues = z.infer<typeof profileSchema>;
-
-export default function TalentProfilePage() {
-  const queryClient = useQueryClient();
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
-  // Fetch profile
-  const { data: profile, isLoading } = useQuery<TalentProfile>({
+  // Fetch complete profile data
+  const { data: profile, isLoading } = useQuery({
     queryKey: ['talent-profile'],
-    queryFn: talentsAPI.getProfile,
-  });
-
-  // Fetch all skills for selection
-  const { data: allSkillsData } = useQuery({
-    queryKey: ['all-skills'],
     queryFn: async () => {
-      const response = await api.get('/public/skills');
+      const response = await api.get('/talent/profile');
       return response.data;
     },
   });
 
-  const allSkills = allSkillsData?.data || [];
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileSchema),
-    values: profile ? {
-      title: profile.title || '',
-      bio: profile.bio || '',
-      hourly_rate: profile.hourly_rate || 0,
-      hourly_rate_currency: profile.hourly_rate_currency || 'USD',
-      availability: profile.availability || 'available',
-      experience_level: profile.experience_level || 'intermediate',
-      location: profile.location || '',
-      is_remote_available: profile.is_remote_available || false,
-      portfolio_url: profile.portfolio_url || '',
-      linkedin_url: profile.linkedin_url || '',
-      github_url: profile.github_url || '',
-      website_url: profile.website_url || '',
-    } : undefined,
-  });
-
-  // Update profile mutation
-  const updateMutation = useMutation({
-    mutationFn: (data: ProfileFormValues) => talentsAPI.updateProfile(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['talent-profile'] });
-      toast.success('Profile updated successfully');
-      setIsEditing(false);
-    },
-    onError: () => {
-      toast.error('Failed to update profile');
-    },
-  });
-
-  // Upload avatar mutation
-  const uploadAvatarMutation = useMutation({
-    mutationFn: (file: File) => talentsAPI.uploadAvatar(file),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['talent-profile'] });
-      toast.success('Avatar uploaded successfully');
-      setSelectedFile(null);
-    },
-    onError: () => {
-      toast.error('Failed to upload avatar');
-    },
-  });
-
-  const onSubmit = (data: ProfileFormValues) => {
-    updateMutation.mutate(data);
-  };
-
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      uploadAvatarMutation.mutate(file);
-    }
-  };
-
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="space-y-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-2"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+        </div>
       </div>
     );
   }
+
+  const skills = profile?.skills || [];
+  const experiences = profile?.experiences || [];
+  const education = profile?.education || [];
 
   return (
     <div className="space-y-6">
@@ -148,353 +47,235 @@ export default function TalentProfilePage() {
             Manage your profile information and settings
           </p>
         </div>
-        {!isEditing ? (
-          <Button onClick={() => setIsEditing(true)}>
-            <Edit className="h-4 w-4 mr-2" />
+        <Link href="/dashboard/profile/edit">
+          <Button size="lg">
+            <Edit className="h-5 w-5 mr-2" />
             Edit Profile
           </Button>
-        ) : (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsEditing(false);
-                reset();
-              }}
-            >
-              <X className="h-4 w-4 mr-2" />
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit(onSubmit)}
-              isLoading={updateMutation.isPending}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Save Changes
-            </Button>
-          </div>
-        )}
+        </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Avatar & Quick Info */}
-        <div className="space-y-6">
-          {/* Avatar Card */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center">
-                {/* Avatar */}
-                <div className="relative inline-block">
-                  <div className="h-32 w-32 rounded-full bg-primary-600 flex items-center justify-center text-white font-medium text-4xl mx-auto">
-                    {profile?.user?.first_name?.charAt(0)}{profile?.user?.last_name?.charAt(0)}
+      {/* Profile Header Card */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-start gap-6">
+            {/* Avatar */}
+            <div className="flex-shrink-0">
+              {profile?.avatar ? (
+                <img
+                  src={profile.avatar}
+                  alt={`${user?.first_name} ${user?.last_name}`}
+                  className="h-24 w-24 rounded-full object-cover"
+                />
+              ) : (
+                <div className="h-24 w-24 rounded-full bg-primary-600 flex items-center justify-center text-white text-2xl font-bold">
+                  {user?.first_name?.charAt(0)}{user?.last_name?.charAt(0)}
+                </div>
+              )}
+            </div>
+
+            {/* Profile Info */}
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                {user?.first_name} {user?.last_name}
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">
+                {profile?.professional_title || 'No title set'}
+              </p>
+
+              <div className="flex flex-wrap gap-4 mt-4">
+                {profile?.experience_level && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                    <Briefcase className="h-4 w-4" />
+                    <span className="capitalize">{profile.experience_level}</span>
                   </div>
-                  {isEditing && (
-                    <label className="absolute bottom-0 right-0 p-2 bg-primary-600 rounded-full cursor-pointer hover:bg-primary-700 transition-colors">
-                      <Upload className="h-4 w-4 text-white" />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarChange}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
-                </div>
-
-                {/* Name */}
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mt-4">
-                  {profile?.user?.first_name} {profile?.user?.last_name}
-                </h2>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {profile?.title || 'No title set'}
-                </p>
-
-                {/* Availability Badge */}
-                <div className="mt-3">
-                  <span className={`
-                    inline-flex px-3 py-1 text-sm font-medium rounded-full
-                    ${profile?.availability === 'available' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : ''}
-                    ${profile?.availability === 'busy' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400' : ''}
-                    ${profile?.availability === 'not_available' ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' : ''}
-                  `}>
-                    {profile?.availability === 'available' && 'Available for Work'}
-                    {profile?.availability === 'busy' && 'Currently Busy'}
-                    {profile?.availability === 'not_available' && 'Not Available'}
-                  </span>
-                </div>
+                )}
+                {(profile?.city || profile?.country) && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                    <MapPin className="h-4 w-4" />
+                    <span>
+                      {[profile.city, profile.state, profile.country].filter(Boolean).join(', ') || 'Not set'}
+                    </span>
+                  </div>
+                )}
+                {profile?.hourly_rate && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                    <DollarSign className="h-4 w-4" />
+                    <span>{profile.currency || '$'}{profile.hourly_rate}/hr</span>
+                  </div>
+                )}
               </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-              {/* Quick Stats */}
-              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Experience</span>
-                  <span className="font-medium text-gray-900 dark:text-white capitalize">
-                    {profile?.experience_level}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Hourly Rate</span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    ${profile?.hourly_rate || 0}/hr
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Location</span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {profile?.is_remote_available ? 'Remote' : profile?.location || 'Not set'}
-                  </span>
-                </div>
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Bio */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Basic Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Bio</h3>
+              <p className="text-gray-900 dark:text-white">
+                {profile?.bio || 'No bio added yet'}
+              </p>
             </CardContent>
           </Card>
 
-          {/* Contact Info Card */}
+          {/* Skills */}
           <Card>
             <CardHeader>
-              <CardTitle>Contact Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-3 text-sm">
-                <Mail className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-900 dark:text-white break-all">
-                  {profile?.user?.email}
-                </span>
+              <div className="flex items-center justify-between">
+                <CardTitle>Skills</CardTitle>
+                <Link href="/dashboard/skills">
+                  <Button variant="outline" size="sm">
+                    Manage Skills
+                  </Button>
+                </Link>
               </div>
-              {profile?.location && (
-                <div className="flex items-center gap-3 text-sm">
-                  <MapPin className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-900 dark:text-white">
-                    {profile.location}
-                  </span>
+            </CardHeader>
+            <CardContent>
+              {skills.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {skills.map((skill: any) => (
+                    <div
+                      key={skill.id}
+                      className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                    >
+                      <h3 className="font-medium text-gray-900 dark:text-white">
+                        {skill.skill?.name || skill.name}
+                      </h3>
+                      {skill.proficiency_level && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 capitalize">
+                          {skill.proficiency_level}
+                        </p>
+                      )}
+                      {skill.years_of_experience && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          {skill.years_of_experience} years experience
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Award className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600 dark:text-gray-400">No skills added yet</p>
+                  <Link href="/dashboard/skills">
+                    <Button variant="outline" size="sm" className="mt-3">
+                      Add Skills
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Work Experience */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Work Experience</CardTitle>
+                <Link href="/dashboard/profile/experience">
+                  <Button variant="outline" size="sm">
+                    Manage Experience
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {experiences.length > 0 ? (
+                <div className="space-y-4">
+                  {experiences.map((exp: any) => (
+                    <div key={exp.id} className="border-l-2 border-primary-600 pl-4">
+                      <h3 className="font-medium text-gray-900 dark:text-white">
+                        {exp.title || exp.job_title}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {exp.company}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        {new Date(exp.start_date).getFullYear()} - {exp.is_current ? 'Present' : new Date(exp.end_date).getFullYear()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600 dark:text-gray-400">No work experience added yet</p>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Right Column - Detailed Info */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Basic Information */}
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Contact Information */}
           <Card>
             <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
+              <CardTitle>Contact Information</CardTitle>
             </CardHeader>
-            <CardContent>
-              {isEditing ? (
-                <form className="space-y-4">
-                  {/* Title */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Professional Title
-                    </label>
-                    <input
-                      {...register('title')}
-                      type="text"
-                      placeholder="e.g., Full-stack Developer"
-                      className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
-                  </div>
-
-                  {/* Bio */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Bio
-                    </label>
-                    <textarea
-                      {...register('bio')}
-                      rows={4}
-                      placeholder="Tell us about yourself..."
-                      className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
-                  </div>
-
-                  {/* Experience Level */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Experience Level
-                      </label>
-                      <select
-                        {...register('experience_level')}
-                        className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      >
-                        <option value="entry">Entry Level</option>
-                        <option value="junior">Junior</option>
-                        <option value="intermediate">Intermediate</option>
-                        <option value="senior">Senior</option>
-                        <option value="expert">Expert</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Availability
-                      </label>
-                      <select
-                        {...register('availability')}
-                        className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      >
-                        <option value="available">Available</option>
-                        <option value="busy">Busy</option>
-                        <option value="not_available">Not Available</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Hourly Rate */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Hourly Rate
-                      </label>
-                      <input
-                        {...register('hourly_rate', { valueAsNumber: true })}
-                        type="number"
-                        placeholder="0"
-                        className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Currency
-                      </label>
-                      <select
-                        {...register('hourly_rate_currency')}
-                        className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      >
-                        <option value="USD">USD</option>
-                        <option value="EUR">EUR</option>
-                        <option value="GBP">GBP</option>
-                        <option value="AED">AED</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Location */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Location
-                    </label>
-                    <input
-                      {...register('location')}
-                      type="text"
-                      placeholder="e.g., New York, NY"
-                      className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
-                  </div>
-
-                  {/* Remote Available */}
-                  <div className="flex items-center gap-2">
-                    <input
-                      {...register('is_remote_available')}
-                      type="checkbox"
-                      id="remote"
-                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="remote" className="text-sm text-gray-700 dark:text-gray-300">
-                      Available for remote work
-                    </label>
-                  </div>
-
-                  {/* Social Links */}
-                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
-                      Social Links
-                    </h3>
-                    <div className="space-y-3">
-                      <input
-                        {...register('portfolio_url')}
-                        type="url"
-                        placeholder="Portfolio URL"
-                        className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      />
-                      <input
-                        {...register('linkedin_url')}
-                        type="url"
-                        placeholder="LinkedIn URL"
-                        className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      />
-                      <input
-                        {...register('github_url')}
-                        type="url"
-                        placeholder="GitHub URL"
-                        className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      />
-                      <input
-                        {...register('website_url')}
-                        type="url"
-                        placeholder="Website URL"
-                        className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      />
-                    </div>
-                  </div>
-                </form>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Bio</p>
-                    <p className="text-gray-900 dark:text-white">
-                      {profile?.bio || 'No bio added yet'}
-                    </p>
-                  </div>
-                  
-                  {(profile?.portfolio_url || profile?.linkedin_url || profile?.github_url || profile?.website_url) && (
-                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Links</p>
-                      <div className="flex flex-wrap gap-2">
-                        {profile?.portfolio_url && (
-                          <a
-                            href={profile.portfolio_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-primary-600 hover:text-primary-700"
-                          >
-                            Portfolio
-                          </a>
-                        )}
-                        {profile?.linkedin_url && (
-                          <a
-                            href={profile.linkedin_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-primary-600 hover:text-primary-700"
-                          >
-                            LinkedIn
-                          </a>
-                        )}
-                        {profile?.github_url && (
-                          <a
-                            href={profile.github_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-primary-600 hover:text-primary-700"
-                          >
-                            GitHub
-                          </a>
-                        )}
-                        {profile?.website_url && (
-                          <a
-                            href={profile.website_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-primary-600 hover:text-primary-700"
-                          >
-                            Website
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  )}
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Mail className="h-4 w-4 text-gray-400" />
+                <span className="text-sm text-gray-900 dark:text-white">
+                  {user?.email}
+                </span>
+              </div>
+              {user?.phone && (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-900 dark:text-white">
+                    {user.phone}
+                  </span>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Skills, Experience, Education sections */}
-          <SkillsSection skills={profile?.skills} allSkills={allSkills} />
-          <ExperienceSection experiences={profile?.experiences} />
-          <EducationSection education={profile?.education} />
+          {/* Education */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Education</CardTitle>
+                <Link href="/dashboard/profile/experience">
+                  <Button variant="outline" size="sm">
+                    Manage
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {education.length > 0 ? (
+                <div className="space-y-4">
+                  {education.map((edu: any) => (
+                    <div key={edu.id}>
+                      <h3 className="font-medium text-gray-900 dark:text-white text-sm">
+                        {edu.degree}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {edu.institution}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {new Date(edu.start_date).getFullYear()} - {edu.is_current ? 'Present' : new Date(edu.end_date).getFullYear()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <GraduationCap className="h-10 w-10 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600 dark:text-gray-400">No education added yet</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
