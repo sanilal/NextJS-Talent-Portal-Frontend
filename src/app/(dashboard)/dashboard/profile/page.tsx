@@ -8,17 +8,37 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import api from '@/lib/api/axios';
 
+// Proficiency level mapping
+const PROFICIENCY_LEVELS = {
+  1: 'Beginner',
+  2: 'Intermediate',
+  3: 'Advanced',
+  4: 'Expert',
+};
+
 export default function ProfilePage() {
   const { user } = useAuthStore();
 
   // Fetch complete profile data
-  const { data: profile, isLoading } = useQuery({
+  const { data: profileResponse, isLoading: isLoadingProfile } = useQuery({
     queryKey: ['talent-profile'],
     queryFn: async () => {
       const response = await api.get('/talent/profile');
       return response.data;
     },
   });
+
+  // Fetch skills separately
+  const { data: skillsResponse, isLoading: isLoadingSkills } = useQuery({
+    queryKey: ['talent-skills'],
+    queryFn: async () => {
+      const response = await api.get('/talent/skills');
+      console.log('Skills response:', response.data);
+      return response.data;
+    },
+  });
+
+  const isLoading = isLoadingProfile || isLoadingSkills;
 
   if (isLoading) {
     return (
@@ -31,9 +51,14 @@ export default function ProfilePage() {
     );
   }
 
-  const skills = profile?.skills || [];
+  // Handle different response structures
+  const profile = profileResponse?.data || profileResponse;
+  const skillsData = Array.isArray(skillsResponse) ? skillsResponse : (skillsResponse?.data || []);
   const experiences = profile?.experiences || [];
   const education = profile?.education || [];
+
+  console.log('Profile:', profile);
+  console.log('Skills:', skillsData);
 
   return (
     <div className="space-y-6">
@@ -80,28 +105,35 @@ export default function ProfilePage() {
                 {user?.first_name} {user?.last_name}
               </h2>
               <p className="text-gray-600 dark:text-gray-400 mt-1">
-                {profile?.professional_title || 'No title set'}
+                {profile?.professional_title || user?.professional_title || 'No title set'}
               </p>
 
               <div className="flex flex-wrap gap-4 mt-4">
-                {profile?.experience_level && (
+                {(profile?.experience_level || user?.experience_level) && (
                   <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                     <Briefcase className="h-4 w-4" />
-                    <span className="capitalize">{profile.experience_level}</span>
+                    <span className="capitalize">{profile?.experience_level || user?.experience_level}</span>
                   </div>
                 )}
-                {(profile?.city || profile?.country) && (
+                {(profile?.city || profile?.country || user?.city || user?.country) && (
                   <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                     <MapPin className="h-4 w-4" />
                     <span>
-                      {[profile.city, profile.state, profile.country].filter(Boolean).join(', ') || 'Not set'}
+                      {[
+                        profile?.city || user?.city,
+                        profile?.state || user?.state,
+                        profile?.country || user?.country
+                      ].filter(Boolean).join(', ') || 'Not set'}
                     </span>
                   </div>
                 )}
-                {profile?.hourly_rate && (
+                {(profile?.hourly_rate || user?.hourly_rate) && (
                   <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                     <DollarSign className="h-4 w-4" />
-                    <span>{profile.currency || '$'}{profile.hourly_rate}/hr</span>
+                    <span>
+                      {profile?.currency || user?.currency || '$'}
+                      {profile?.hourly_rate || user?.hourly_rate}/hr
+                    </span>
                   </div>
                 )}
               </div>
@@ -121,7 +153,7 @@ export default function ProfilePage() {
             <CardContent>
               <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Bio</h3>
               <p className="text-gray-900 dark:text-white">
-                {profile?.bio || 'No bio added yet'}
+                {profile?.bio || user?.bio || 'No bio added yet'}
               </p>
             </CardContent>
           </Card>
@@ -139,28 +171,67 @@ export default function ProfilePage() {
               </div>
             </CardHeader>
             <CardContent>
-              {skills.length > 0 ? (
+              {skillsData.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {skills.map((skill: any) => (
-                    <div
-                      key={skill.id}
-                      className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                    >
-                      <h3 className="font-medium text-gray-900 dark:text-white">
-                        {skill.skill?.name || skill.name}
-                      </h3>
-                      {skill.proficiency_level && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 capitalize">
-                          {skill.proficiency_level}
-                        </p>
-                      )}
-                      {skill.years_of_experience && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                          {skill.years_of_experience} years experience
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                  {skillsData.map((talentSkill: any) => {
+                    const skill = talentSkill.skill;
+                    const proficiencyLevel = talentSkill.proficiency_level;
+                    
+                    return (
+                      <div
+                        key={talentSkill.id}
+                        className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg relative"
+                      >
+                        {talentSkill.is_primary && (
+                          <span className="absolute top-2 right-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-medium rounded">
+                            Primary
+                          </span>
+                        )}
+                        
+                        {/* Skill Image */}
+                        {(talentSkill.image_url || talentSkill.image_path) && (
+                          <img
+                            src={talentSkill.image_url || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/storage/${talentSkill.image_path}`}
+                            alt={skill?.name}
+                            className="w-full h-24 object-cover rounded mb-3"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        )}
+                        
+                        <h3 className="font-medium text-gray-900 dark:text-white">
+                          {skill?.name || 'Unknown Skill'}
+                        </h3>
+                        
+                        {proficiencyLevel && (
+                          <div className="mt-2">
+                            <span className={`
+                              inline-block px-2.5 py-0.5 rounded-full text-xs font-medium
+                              ${proficiencyLevel === 4 ? 'bg-green-100 text-green-800' :
+                                proficiencyLevel === 3 ? 'bg-blue-100 text-blue-800' :
+                                proficiencyLevel === 2 ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'}
+                            `}>
+                              {PROFICIENCY_LEVELS[proficiencyLevel as keyof typeof PROFICIENCY_LEVELS] || 'Unknown'}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {talentSkill.years_of_experience !== undefined && talentSkill.years_of_experience > 0 && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                            {talentSkill.years_of_experience} {talentSkill.years_of_experience === 1 ? 'year' : 'years'} experience
+                          </p>
+                        )}
+                        
+                        {talentSkill.description && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">
+                            {talentSkill.description}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8">
