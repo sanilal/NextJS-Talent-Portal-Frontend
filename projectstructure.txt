@@ -1,0 +1,130 @@
+ls app
+Helpers/  Http/  Jobs/  Models/  Observers/  Providers/  Services/
+
+ls app/Helpers
+SimilarityHelper.php
+
+ ls app/Http
+Controllers/  Middleware/
+
+ ls app/Http/Controllers
+Api/  AuthenticationController.php  Controller.php
+
+ ls app/Http/Controllers/Api
+ApplicationController.php  MediaController.php    NotificationController.php  PublicController.php     ReviewController.php  Talent/
+Auth/                      MessageController.php  ProjectController.php       RecruiterController.php  SearchController.php
+
+ ls app/Http/Controllers/Api/Talent
+EducationController.php  ExperiencesController.php  PortfolioController.php  TalentProfileController.php  TalentSkillsController.php
+
+ls app/Http/Controllers/Api/Auth
+AuthController.php  EmailVerificationController.php  PasswordResetController.php  TwoFactorController.php
+
+
+ls app/Http/Middleware
+ApiAuthMiddleware.php       CheckAccountStatus.php  EnsureEmailIsVerified.php  RoleMiddleware.php             TwoFactorMiddleware.php
+ApiRateLimitMiddleware.php  EncryptCookies.php      HandleOptionsRequests.php  SecurityHeadersMiddleware.php  VerifyCsrfToken.php
+
+ ls app/Jobs
+GeneratePortfolioEmbedding.php  GenerateProjectEmbeddings.php  GenerateSkillEmbedding.php  GenerateTalentProfileEmbeddings.php
+
+ls app/Models
+Application.php  EmailVerificationAttempt.php  Media.php         Portfolio.php         Review.php         TalentSkill.php
+Category.php     Experience.php                Message.php       Project.php           Skill.php          User.php
+Education.php    LoginAttempt.php              Notification.php  RecruiterProfile.php  TalentProfile.php
+
+ ls app/Observers
+PortfolioObserver.php  ProjectObserver.php  SkillObserver.php  TalentProfileObserver.php
+
+ls app/Providers
+AppServiceProvider.php  TelescopeServiceProvider.php
+
+
+ls app/Services
+AuthenticationService.php  EmbeddingService.php  SearchService.php
+
+
+
+
+
+Admin@DESKTOP-TC6FUA0 MINGW64 /d/xampp/htdocs/projects/talents-you-need/frontend (main)
+$ ls
+COMPLETE_SETUP_GUIDE.md  IMPLEMENTATION_CHECKLIST.md  next-env.d.ts  package-lock.json    public/          src/
+DEPLOYMENT_GUIDE.md      IMPLEMENTATION_SUMMARY.md    node_modules/  postcss.config.mjs   QUICK_START.sh*  test-backend.sh*
+eslint.config.mjs        next.config.ts               package.json   PROJECT_COMPLETE.md  README.md        tsconfig.json   
+
+
+ls src
+app/  components/  hooks/  lib/  store/  styles/  types/
+
+
+ ls src/app
+'(auth)'/  '(dashboard)'/   favicon.ico   globals.css   layout.tsx   page.tsx   projects/   talents/
+
+
+ls src/app/'(auth)'
+layout.tsx  login/  register/
+
+ls src/app/'(dashboard)'
+dashboard/  layout.tsx
+
+ ls src/app/'(dashboard)'/dashboard
+applications/  messages/  profile/  projects/  recruiter/  settings/  skills/  talent/  talents/
+
+ls src/app/'(dashboard)'/dashboard/profile
+edit/  experience/  page.tsx
+
+ ls src/app/'(dashboard)'/dashboard/projects
+'[id]'/   create/   page.tsx
+
+$ ls src/app/'(dashboard)'/dashboard/projects/'[id]'
+apply/  page.tsx
+
+ls src/app/'(dashboard)'/dashboard/projects/'[id]'/apply
+page.tsx
+
+
+ls src/app/talents
+'[id]'/   page.tsx
+
+ls src/components
+auth/  dashboard/  layout/  profile/  projects/  Providers.tsx  Providers.tsx.backup  talents/  ui/  VerificationBanner.tsx
+
+ls src/components/auth
+ProtectedRoute.tsx  PublicRoute.tsx
+
+ ls src/components/dashboard
+DashboardComponents.tsx
+
+ls src/components/layout
+DashboardHeader.tsx  DashboardSidebar.tsx  NotificationsDropdown.tsx
+
+ls src/components/profile
+EducationSection.tsx  ExperienceSection.tsx  SkillsSection.tsx
+
+ ls src/components/projects
+ProjectCard.tsx
+
+ ls src/components/talents
+TalentCard.tsx
+
+ls src/components/ui
+button.tsx  card.tsx  input.tsx
+
+ ls src/hooks
+useDashboard.ts
+
+ ls src/lib
+api/  utils.ts
+
+ls src/lib/api
+applications.ts  auth.ts  axios.ts  messages.ts  notifications.ts  projects.ts  search.ts  talents.ts  talents.ts.backup
+
+ls src/store
+authStore.ts
+
+ls src/styles
+globals.css  tailwind.css
+
+ls src/types
+index.ts  index.ts.backup

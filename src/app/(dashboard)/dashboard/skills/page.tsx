@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Plus, Edit, Trash2, Image as ImageIcon, Video, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import api from '@/lib/api/axios';
 
 interface Skill {
@@ -37,17 +37,51 @@ export default function SkillsManagementPage() {
     queryKey: ['talent-skills'],
     queryFn: async () => {
       const response = await api.get('/talent/skills');
-      return response.data || [];
+      console.log('👤 Talent skills response:', response.data);
+      
+      // Handle different response structures
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      }
+      return [];
     },
   });
 
-  // Fetch all available skills
-  const { data: availableSkills = [] } = useQuery<Skill[]>({
+  // Fetch all available skills with proper error handling
+  const { data: availableSkills = [], isLoading: isLoadingSkills, error: skillsError } = useQuery<Skill[]>({
     queryKey: ['all-skills'],
     queryFn: async () => {
-      const response = await api.get('/public/skills');
-      return response.data || [];
+      try {
+        const response = await api.get('/public/skills');
+        console.log('🔍 Available skills response:', response.data);
+        
+        // Handle different response structures
+        // Laravel might return: { data: [...] } or just [...]
+        let skills: Skill[] = [];
+        
+        if (Array.isArray(response.data)) {
+          skills = response.data;
+        } else if (response.data?.data && Array.isArray(response.data.data)) {
+          skills = response.data.data;
+        } else if (response.data?.skills && Array.isArray(response.data.skills)) {
+          skills = response.data.skills;
+        } else {
+          console.warn('⚠️ Unexpected skills response structure:', response.data);
+          return [];
+        }
+        
+        console.log('✅ Parsed skills:', skills.length, 'skills found');
+        return skills;
+      } catch (error) {
+        console.error('❌ Error fetching skills:', error);
+        throw error;
+      }
     },
+    retry: 2,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const deleteSkillMutation = useMutation({
@@ -61,6 +95,55 @@ export default function SkillsManagementPage() {
     },
   });
 
+  const handleAddClick = () => {
+    console.log('Add Skill button clicked');
+    console.log('Available skills:', availableSkills);
+    
+    if (!availableSkills || availableSkills.length === 0) {
+      toast.error('No skills available. Please check your connection.');
+      return;
+    }
+    
+    setShowAddModal(true);
+  };
+
+  // Show error state if skills failed to load
+  if (skillsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              My Skills
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-2">
+              Manage your skills and expertise
+            </p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-12 text-center">
+            <div className="h-16 w-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">⚠️</span>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              Unable to Load Skills
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              There was an error loading available skills. Please check your connection.
+            </p>
+            <button
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['all-skills'] })}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Try Again
+            </button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -73,10 +156,14 @@ export default function SkillsManagementPage() {
             Manage your skills and expertise
           </p>
         </div>
-        <Button onClick={() => setShowAddModal(true)}>
-          <Plus className="h-5 w-5 mr-2" />
-          Add Skill
-        </Button>
+        <button
+          onClick={handleAddClick}
+          disabled={isLoadingSkills}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Plus className="h-5 w-5" />
+          {isLoadingSkills ? 'Loading...' : 'Add Skill'}
+        </button>
       </div>
 
       {/* Skills Grid */}
@@ -121,7 +208,7 @@ export default function SkillsManagementPage() {
                 {talentSkill.proficiency_level && (
                   <div className="mb-2">
                     <span className={`
-                      inline-block px-2.5 py-0.5 rounded-full text-xs font-medium
+                      inline-block px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
                       ${talentSkill.proficiency_level === 'expert' ? 'bg-green-100 text-green-800' :
                         talentSkill.proficiency_level === 'advanced' ? 'bg-blue-100 text-blue-800' :
                         talentSkill.proficiency_level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
@@ -162,26 +249,23 @@ export default function SkillsManagementPage() {
 
                 {/* Actions */}
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  <button
                     onClick={() => setEditingSkill(talentSkill)}
-                    className="flex-1"
+                    className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300"
                   >
-                    <Edit className="h-4 w-4 mr-1" />
+                    <Edit className="h-4 w-4" />
                     Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  </button>
+                  <button
                     onClick={() => {
                       if (confirm('Remove this skill?')) {
                         deleteSkillMutation.mutate(talentSkill.id);
                       }
                     }}
+                    className="px-3 py-2 border border-red-300 dark:border-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
                   >
                     <Trash2 className="h-4 w-4 text-red-600" />
-                  </Button>
+                  </button>
                 </div>
               </CardContent>
             </Card>
@@ -199,10 +283,14 @@ export default function SkillsManagementPage() {
             <p className="text-gray-600 dark:text-gray-400 mb-4">
               Start building your profile by adding your skills
             </p>
-            <Button onClick={() => setShowAddModal(true)}>
-              <Plus className="h-5 w-5 mr-2" />
-              Add Your First Skill
-            </Button>
+            <button
+              onClick={handleAddClick}
+              disabled={isLoadingSkills}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
+            >
+              <Plus className="h-5 w-5" />
+              {isLoadingSkills ? 'Loading Skills...' : 'Add Your First Skill'}
+            </button>
           </CardContent>
         </Card>
       )}
@@ -244,6 +332,15 @@ function SkillModal({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(skill?.image_url || null);
 
+  // Log to debug
+  console.log('SkillModal rendered with:', {
+    isEdit: !!skill,
+    availableSkillsCount: availableSkills?.length || 0,
+    availableSkillsType: typeof availableSkills,
+    isArray: Array.isArray(availableSkills),
+    availableSkills: availableSkills
+  });
+
   const saveMutation = useMutation({
     mutationFn: async (data: FormData) => {
       if (skill) {
@@ -261,8 +358,9 @@ function SkillModal({
       queryClient.invalidateQueries({ queryKey: ['talent-skills'] });
       onClose();
     },
-    onError: () => {
-      toast.error('Failed to save skill');
+    onError: (error: any) => {
+      console.error('Save skill error:', error);
+      toast.error(error.response?.data?.message || 'Failed to save skill');
     },
   });
 
@@ -278,23 +376,32 @@ function SkillModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log('Submitting skill:', formData);
+    
     const data = new FormData();
     Object.entries(formData).forEach(([key, value]) => {
       if (value !== null && value !== undefined && value !== '') {
         data.append(key, value.toString());
       }
     });
+    
     if (imageFile) {
       data.append('image', imageFile);
     }
+    
     if (skill) {
       data.append('_method', 'PUT');
     }
+    
     saveMutation.mutate(data);
   };
 
+  // Safe check for availableSkills
+  const skillsList = Array.isArray(availableSkills) ? availableSkills : [];
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -308,19 +415,25 @@ function SkillModal({
             {!skill && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Select Skill *
+                  Select Skill * {skillsList.length === 0 && <span className="text-red-500 text-xs">(No skills available)</span>}
                 </label>
                 <select
                   value={formData.skill_id}
                   onChange={(e) => setFormData({ ...formData, skill_id: e.target.value })}
                   required
-                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  disabled={skillsList.length === 0}
+                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">Choose a skill...</option>
-                  {availableSkills.map((s) => (
+                  {skillsList.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
+                {skillsList.length === 0 && (
+                  <p className="mt-1 text-xs text-red-500">
+                    Unable to load skills. Please refresh the page or contact support.
+                  </p>
+                )}
               </div>
             )}
 
@@ -383,7 +496,7 @@ function SkillModal({
                 type="file"
                 accept="image/*"
                 onChange={handleImageChange}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               />
             </div>
 
@@ -407,7 +520,7 @@ function SkillModal({
                 type="checkbox"
                 checked={formData.is_primary}
                 onChange={(e) => setFormData({ ...formData, is_primary: e.target.checked })}
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <label className="text-sm text-gray-700 dark:text-gray-300">
                 Set as primary skill
@@ -416,12 +529,20 @@ function SkillModal({
           </div>
 
           <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 font-medium text-gray-700 dark:text-gray-300"
+            >
               Cancel
-            </Button>
-            <Button type="submit" isLoading={saveMutation.isPending}>
-              {skill ? 'Update' : 'Add'} Skill
-            </Button>
+            </button>
+            <button
+              type="submit"
+              disabled={saveMutation.isPending || (skillsList.length === 0 && !skill)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saveMutation.isPending ? 'Saving...' : skill ? 'Update Skill' : 'Add Skill'}
+            </button>
           </div>
         </form>
       </div>
