@@ -16,6 +16,7 @@ interface Skill {
 
 interface TalentSkill {
   id: number;
+  talent_profile_id: number; // CRITICAL: Not talent_id
   skill_id: number;
   skill: Skill;
   description?: string;
@@ -39,7 +40,6 @@ export default function SkillsManagementPage() {
       const response = await api.get('/talent/skills');
       console.log('👤 Talent skills response:', response.data);
       
-      // Handle different response structures
       if (Array.isArray(response.data)) {
         return response.data;
       }
@@ -50,7 +50,7 @@ export default function SkillsManagementPage() {
     },
   });
 
-  // Fetch all available skills with proper error handling
+  // Fetch all available skills
   const { data: availableSkills = [], isLoading: isLoadingSkills, error: skillsError } = useQuery<Skill[]>({
     queryKey: ['all-skills'],
     queryFn: async () => {
@@ -58,8 +58,6 @@ export default function SkillsManagementPage() {
         const response = await api.get('/public/skills');
         console.log('🔍 Available skills response:', response.data);
         
-        // Handle different response structures
-        // Laravel might return: { data: [...] } or just [...]
         let skills: Skill[] = [];
         
         if (Array.isArray(response.data)) {
@@ -81,7 +79,7 @@ export default function SkillsManagementPage() {
       }
     },
     retry: 2,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
   const deleteSkillMutation = useMutation({
@@ -107,7 +105,6 @@ export default function SkillsManagementPage() {
     setShowAddModal(true);
   };
 
-  // Show error state if skills failed to load
   if (skillsError) {
     return (
       <div className="space-y-6">
@@ -189,7 +186,6 @@ export default function SkillsManagementPage() {
               )}
               
               <CardContent className="p-6">
-                {/* Skill Image */}
                 {talentSkill.image_url && (
                   <div className="mb-4">
                     <img
@@ -200,7 +196,6 @@ export default function SkillsManagementPage() {
                   </div>
                 )}
 
-                {/* Skill Info */}
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {talentSkill.skill.name}
                 </h3>
@@ -231,7 +226,6 @@ export default function SkillsManagementPage() {
                   </p>
                 )}
 
-                {/* Media Links */}
                 <div className="flex gap-2 mb-4">
                   {talentSkill.image_url && (
                     <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
@@ -247,7 +241,6 @@ export default function SkillsManagementPage() {
                   )}
                 </div>
 
-                {/* Actions */}
                 <div className="flex gap-2">
                   <button
                     onClick={() => setEditingSkill(talentSkill)}
@@ -332,17 +325,20 @@ function SkillModal({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(skill?.image_url || null);
 
-  // Log to debug
   console.log('SkillModal rendered with:', {
     isEdit: !!skill,
     availableSkillsCount: availableSkills?.length || 0,
-    availableSkillsType: typeof availableSkills,
-    isArray: Array.isArray(availableSkills),
-    availableSkills: availableSkills
+    formData
   });
 
   const saveMutation = useMutation({
     mutationFn: async (data: FormData) => {
+      // Log what we're sending
+      console.log('📤 Sending form data:');
+      for (const [key, value] of data.entries()) {
+        console.log(`  ${key}:`, value);
+      }
+
       if (skill) {
         return api.post(`/talent/skills/${skill.id}`, data, {
           headers: { 'Content-Type': 'multipart/form-data' },
@@ -353,14 +349,31 @@ function SkillModal({
         });
       }
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      console.log('✅ Skill saved successfully:', response.data);
       toast.success(skill ? 'Skill updated successfully' : 'Skill added successfully');
       queryClient.invalidateQueries({ queryKey: ['talent-skills'] });
       onClose();
     },
     onError: (error: any) => {
-      console.error('Save skill error:', error);
-      toast.error(error.response?.data?.message || 'Failed to save skill');
+      console.error('❌ Save skill error:', error);
+      console.error('❌ Error response:', error.response?.data);
+      
+      // Show detailed validation errors
+      if (error.response?.data?.errors) {
+        const errors = error.response.data.errors;
+        console.error('🔴 Validation errors:', errors);
+        
+        // Display first error
+        const firstError = Object.values(errors)[0];
+        if (Array.isArray(firstError) && firstError.length > 0) {
+          toast.error(firstError[0] as string);
+        } else {
+          toast.error('Validation failed. Check console for details.');
+        }
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to save skill');
+      }
     },
   });
 
@@ -377,27 +390,51 @@ function SkillModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('Submitting skill:', formData);
+    console.log('🚀 Submitting skill with formData:', formData);
     
     const data = new FormData();
-    Object.entries(formData).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && value !== '') {
-        data.append(key, value.toString());
-      }
-    });
+    
+    // Add all form fields - ONLY if they have a value
+    if (formData.skill_id) {
+      data.append('skill_id', formData.skill_id.toString());
+    }
+    
+    if (formData.description && formData.description.trim()) {
+      data.append('description', formData.description.trim());
+    }
+    
+    if (formData.proficiency_level) {
+      data.append('proficiency_level', formData.proficiency_level);
+    }
+    
+    if (formData.years_of_experience !== undefined && formData.years_of_experience !== null) {
+      data.append('years_of_experience', formData.years_of_experience.toString());
+    }
+    
+    if (formData.video_url && formData.video_url.trim()) {
+      data.append('video_url', formData.video_url.trim());
+    }
+    
+    // Boolean fields need special handling
+    data.append('is_primary', formData.is_primary ? '1' : '0');
     
     if (imageFile) {
       data.append('image', imageFile);
     }
     
+    // For updates, add _method field
     if (skill) {
       data.append('_method', 'PUT');
+    }
+    
+    console.log('📦 FormData contents:');
+    for (const [key, value] of data.entries()) {
+      console.log(`  ${key}:`, value);
     }
     
     saveMutation.mutate(data);
   };
 
-  // Safe check for availableSkills
   const skillsList = Array.isArray(availableSkills) ? availableSkills : [];
 
   return (
@@ -431,7 +468,7 @@ function SkillModal({
                 </select>
                 {skillsList.length === 0 && (
                   <p className="mt-1 text-xs text-red-500">
-                    Unable to load skills. Please refresh the page or contact support.
+                    Unable to load skills. Please refresh the page.
                   </p>
                 )}
               </div>
@@ -478,6 +515,7 @@ function SkillModal({
                 value={formData.years_of_experience}
                 onChange={(e) => setFormData({ ...formData, years_of_experience: parseInt(e.target.value) || 0 })}
                 min="0"
+                max="50"
                 className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
@@ -498,6 +536,9 @@ function SkillModal({
                 onChange={handleImageChange}
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Max 2MB. Supported: JPG, PNG, GIF
+              </p>
             </div>
 
             {/* Video URL */}
@@ -518,11 +559,12 @@ function SkillModal({
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
+                id="is_primary"
                 checked={formData.is_primary}
                 onChange={(e) => setFormData({ ...formData, is_primary: e.target.checked })}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
-              <label className="text-sm text-gray-700 dark:text-gray-300">
+              <label htmlFor="is_primary" className="text-sm text-gray-700 dark:text-gray-300">
                 Set as primary skill
               </label>
             </div>
@@ -532,7 +574,8 @@ function SkillModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 font-medium text-gray-700 dark:text-gray-300"
+              disabled={saveMutation.isPending}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 font-medium text-gray-700 dark:text-gray-300 disabled:opacity-50"
             >
               Cancel
             </button>
