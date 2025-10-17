@@ -16,17 +16,25 @@ interface Skill {
 
 interface TalentSkill {
   id: number;
-  talent_profile_id: number; // CRITICAL: Not talent_id
+  talent_profile_id: number;
   skill_id: number;
   skill: Skill;
   description?: string;
-  proficiency_level?: string;
+  proficiency_level?: number; // Integer: 1=Beginner, 2=Intermediate, 3=Advanced, 4=Expert
   years_of_experience?: number;
   image_url?: string;
   video_url?: string;
   is_primary?: boolean;
   display_order?: number;
 }
+
+// Proficiency level mapping (Integer keys)
+const PROFICIENCY_LEVELS = {
+  1: { label: 'Beginner', color: 'bg-gray-100 text-gray-800' },
+  2: { label: 'Intermediate', color: 'bg-yellow-100 text-yellow-800' },
+  3: { label: 'Advanced', color: 'bg-blue-100 text-blue-800' },
+  4: { label: 'Expert', color: 'bg-green-100 text-green-800' },
+};
 
 export default function SkillsManagementPage() {
   const queryClient = useQueryClient();
@@ -200,21 +208,18 @@ export default function SkillsManagementPage() {
                   {talentSkill.skill.name}
                 </h3>
 
-                {talentSkill.proficiency_level && (
+                {talentSkill.proficiency_level && PROFICIENCY_LEVELS[talentSkill.proficiency_level as keyof typeof PROFICIENCY_LEVELS] && (
                   <div className="mb-2">
                     <span className={`
-                      inline-block px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
-                      ${talentSkill.proficiency_level === 'expert' ? 'bg-green-100 text-green-800' :
-                        talentSkill.proficiency_level === 'advanced' ? 'bg-blue-100 text-blue-800' :
-                        talentSkill.proficiency_level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'}
+                      inline-block px-2.5 py-0.5 rounded-full text-xs font-medium
+                      ${PROFICIENCY_LEVELS[talentSkill.proficiency_level as keyof typeof PROFICIENCY_LEVELS].color}
                     `}>
-                      {talentSkill.proficiency_level}
+                      {PROFICIENCY_LEVELS[talentSkill.proficiency_level as keyof typeof PROFICIENCY_LEVELS].label}
                     </span>
                   </div>
                 )}
 
-                {talentSkill.years_of_experience && (
+                {talentSkill.years_of_experience !== undefined && talentSkill.years_of_experience > 0 && (
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                     {talentSkill.years_of_experience} years experience
                   </p>
@@ -317,7 +322,7 @@ function SkillModal({
   const [formData, setFormData] = useState({
     skill_id: skill?.skill_id || '',
     description: skill?.description || '',
-    proficiency_level: skill?.proficiency_level || 'intermediate',
+    proficiency_level: skill?.proficiency_level || 2, // Default: 2 = Intermediate
     years_of_experience: skill?.years_of_experience || 0,
     video_url: skill?.video_url || '',
     is_primary: skill?.is_primary || false,
@@ -333,7 +338,6 @@ function SkillModal({
 
   const saveMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      // Log what we're sending
       console.log('📤 Sending form data:');
       for (const [key, value] of data.entries()) {
         console.log(`  ${key}:`, value);
@@ -359,12 +363,10 @@ function SkillModal({
       console.error('❌ Save skill error:', error);
       console.error('❌ Error response:', error.response?.data);
       
-      // Show detailed validation errors
       if (error.response?.data?.errors) {
         const errors = error.response.data.errors;
         console.error('🔴 Validation errors:', errors);
         
-        // Display first error
         const firstError = Object.values(errors)[0];
         if (Array.isArray(firstError) && firstError.length > 0) {
           toast.error(firstError[0] as string);
@@ -391,33 +393,43 @@ function SkillModal({
     e.preventDefault();
     
     console.log('🚀 Submitting skill with formData:', formData);
+    console.log('🔍 Proficiency level type:', typeof formData.proficiency_level);
+    console.log('🔍 Proficiency level value:', formData.proficiency_level);
     
     const data = new FormData();
     
-    // Add all form fields - ONLY if they have a value
+    // Add skill_id (REQUIRED)
     if (formData.skill_id) {
       data.append('skill_id', formData.skill_id.toString());
     }
     
+    // Add description (optional)
     if (formData.description && formData.description.trim()) {
       data.append('description', formData.description.trim());
     }
     
+    // Add proficiency_level as INTEGER (REQUIRED)
     if (formData.proficiency_level) {
-      data.append('proficiency_level', formData.proficiency_level);
+      data.append('proficiency_level', formData.proficiency_level.toString());
+      console.log('✅ Added proficiency_level:', formData.proficiency_level, '(type: number)');
+    } else {
+      console.error('❌ proficiency_level is missing!');
     }
     
+    // Add years_of_experience
     if (formData.years_of_experience !== undefined && formData.years_of_experience !== null) {
       data.append('years_of_experience', formData.years_of_experience.toString());
     }
     
+    // Add video_url (optional)
     if (formData.video_url && formData.video_url.trim()) {
       data.append('video_url', formData.video_url.trim());
     }
     
-    // Boolean fields need special handling
+    // Add is_primary as boolean (0 or 1)
     data.append('is_primary', formData.is_primary ? '1' : '0');
     
+    // Add image file if selected
     if (imageFile) {
       data.append('image', imageFile);
     }
@@ -427,9 +439,13 @@ function SkillModal({
       data.append('_method', 'PUT');
     }
     
-    console.log('📦 FormData contents:');
+    console.log('📦 FormData contents being sent:');
     for (const [key, value] of data.entries()) {
-      console.log(`  ${key}:`, value);
+      if (value instanceof File) {
+        console.log(`  ${key}:`, `[File: ${value.name}]`);
+      } else {
+        console.log(`  ${key}:`, value, `(type: ${typeof value})`);
+      }
     }
     
     saveMutation.mutate(data);
@@ -488,20 +504,21 @@ function SkillModal({
               />
             </div>
 
-            {/* Proficiency Level */}
+            {/* Proficiency Level - AS INTEGER */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Proficiency Level
+                Proficiency Level *
               </label>
               <select
                 value={formData.proficiency_level}
-                onChange={(e) => setFormData({ ...formData, proficiency_level: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, proficiency_level: parseInt(e.target.value) })}
+                required
                 className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
-                <option value="expert">Expert</option>
+                <option value="1">Beginner</option>
+                <option value="2">Intermediate</option>
+                <option value="3">Advanced</option>
+                <option value="4">Expert</option>
               </select>
             </div>
 
@@ -550,7 +567,7 @@ function SkillModal({
                 type="url"
                 value={formData.video_url}
                 onChange={(e) => setFormData({ ...formData, video_url: e.target.value })}
-                placeholder="https://youtube.com/..."
+                placeholder="https://youtube.com/watch?v=..."
                 className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
