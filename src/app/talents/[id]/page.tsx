@@ -1,103 +1,243 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import api from '@/lib/api/axios';
 import {
+  ArrowLeft,
   MapPin,
   DollarSign,
   Star,
-  Briefcase,
   Mail,
+  Phone,
   Globe,
   Calendar,
-  Award,
   Eye,
-  ArrowLeft,
-  ExternalLink,
-  Play,
-  Image as ImageIcon,
-  Phone,
-  Linkedin,
-  Github,
-  Globe as WebIcon,
+  Briefcase,
+  Award,
+  FolderOpen,
+  GraduationCap,
 } from 'lucide-react';
-import { api } from '@/lib/api/axios';
+
+// Diagnostic logging component
+function DiagnosticInfo({ data, talent, profile }: any) {
+  if (process.env.NODE_ENV !== 'development') return null;
+
+  return (
+    <div className="fixed bottom-4 right-4 bg-black text-white p-4 rounded-lg text-xs max-w-md overflow-auto max-h-96 z-50">
+      <h4 className="font-bold mb-2 text-yellow-300">🔍 Debug Info</h4>
+      <pre className="whitespace-pre-wrap">
+        {JSON.stringify(
+          {
+            timestamp: new Date().toISOString(),
+            hasRawData: !!data,
+            dataKeys: data ? Object.keys(data) : [],
+            hasDataData: !!data?.data,
+            hasTalent: !!talent,
+            hasProfile: !!profile,
+            talentKeys: talent ? Object.keys(talent).slice(0, 10) : [],
+            profileKeys: profile ? Object.keys(profile || {}) : [],
+            firstName: talent?.first_name,
+            lastName: talent?.last_name,
+            profileTitle: profile?.professional_title,
+            skillsCount: profile?.skills?.length || 0,
+            apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL,
+          },
+          null,
+          2
+        )}
+      </pre>
+    </div>
+  );
+}
 
 export default function TalentProfilePage() {
   const params = useParams();
   const router = useRouter();
   const talentId = params.id as string;
-  const [showContactModal, setShowContactModal] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(true);
 
-  const { data, isLoading, error } = useQuery({
+  // Fetch talent data - REMOVED /api/v1 prefix since it's in baseURL
+  const {
+    data,
+    isLoading,
+    error,
+    isError,
+  } = useQuery({
     queryKey: ['public-talent', talentId],
     queryFn: async () => {
-      const response = await api.get(`/api/v1/public/talents/${talentId}`);
-      return response.data;
+      console.log('🔍 Fetching talent with ID:', talentId);
+      console.log('🌐 API Base URL:', process.env.NEXT_PUBLIC_API_BASE_URL);
+      
+      try {
+        // ✅ FIXED: Removed /api/v1 since it's already in baseURL
+        const response = await api.get(`/public/talents/${talentId}`);
+        console.log('📦 Full API Response:', response);
+        console.log('📦 Response Data:', response.data);
+        return response.data;
+      } catch (err: any) {
+        console.error('❌ API Error:', err);
+        console.error('❌ Error Response:', err.response);
+        throw err;
+      }
     },
     enabled: !!talentId,
   });
 
+  // Log query state changes
+  useEffect(() => {
+    console.log('🎯 Query State Changed:', {
+      hasData: !!data,
+      isLoading,
+      isError,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }, [data, isLoading, isError, error]);
+
+  // Extract talent data - trying both possible structures
+  const talent = data?.data?.talent || data?.data || null;
+  const stats = data?.data?.stats || {};
+  const profile = talent?.talent_profile || null;
+
+  console.log('🎨 Render State:', {
+    talent: !!talent,
+    profile: !!profile,
+    isLoading,
+    isError,
+  });
+
+  // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="animate-pulse space-y-6">
-            <div className="h-64 bg-gray-200 rounded-lg"></div>
-            <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-            <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading talent profile...</p>
+          <p className="text-sm text-gray-400 mt-2">ID: {talentId}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state with detailed information
+  if (isError) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorResponse = (error as any)?.response;
+
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl w-full">
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+              <span className="text-3xl">❌</span>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Talent</h1>
+            <p className="text-gray-600">We encountered an issue loading this talent profile.</p>
+          </div>
+
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <h3 className="font-semibold text-red-900 mb-2">Error Details:</h3>
+            <p className="text-sm text-red-700 mb-2">{errorMessage}</p>
+            {errorResponse && (
+              <div className="text-xs text-red-600 mt-2">
+                <p>Status: {errorResponse.status}</p>
+                <p>Status Text: {errorResponse.statusText}</p>
+                {errorResponse.data?.message && (
+                  <p>Server Message: {errorResponse.data.message}</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <h3 className="font-semibold text-blue-900 mb-2">Debug Information:</h3>
+            <div className="text-xs text-blue-700 space-y-1">
+              <p>Talent ID: {talentId}</p>
+              <p>API Base URL: {process.env.NEXT_PUBLIC_API_BASE_URL || 'NOT SET'}</p>
+              <p>Endpoint: /public/talents/{talentId}</p>
+              <p>Full URL: {process.env.NEXT_PUBLIC_API_BASE_URL}/public/talents/{talentId}</p>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <button
+              onClick={() => router.back()}
+              className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              ← Go Back
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              🔄 Retry
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
-  if (error || !data || !data.success) {
+  // No data state
+  if (!talent) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Talent Not Found</h2>
-          <p className="text-gray-600 mb-4">The talent profile you're looking for doesn't exist.</p>
-          <Link
-            href="/talents"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl w-full">
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-yellow-100 rounded-full mb-4">
+              <span className="text-3xl">⚠️</span>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Talent Not Found</h1>
+            <p className="text-gray-600">The talent profile you're looking for doesn't exist or is not available.</p>
+          </div>
+
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <h3 className="font-semibold text-yellow-900 mb-2">What happened?</h3>
+            <p className="text-sm text-yellow-700">
+              The API returned data, but we couldn't find the talent information in the expected format.
+            </p>
+          </div>
+
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+            <h3 className="font-semibold text-gray-900 mb-2">Debug Info:</h3>
+            <pre className="text-xs text-gray-600 overflow-auto max-h-40">
+              {JSON.stringify({ data, talent, profile }, null, 2)}
+            </pre>
+          </div>
+
+          <button
+            onClick={() => router.push('/talents')}
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Directory
-          </Link>
+            ← Back to Talents Directory
+          </button>
         </div>
       </div>
     );
   }
 
-  // FIXED: Correct data access for the new API structure
-  const talent = data.data?.talent || data.data;
-  const stats = data.data?.stats || {};
-  
-  // FIXED: Access talent_profile correctly
-  const profile = talent.talent_profile;
-  
-  // FIXED: Access relationships correctly
-  const experiences = profile?.experiences || talent.experiences || [];
-  const education = profile?.education || talent.education || [];
-  const portfolios = profile?.portfolios || talent.portfolios || [];
+  // Success! Show the profile
   const skills = profile?.skills || [];
-  
-  const primarySkill = skills.find((s: any) => s.is_primary);
-  const visibleSkills = skills.filter((s: any) => s.show_on_profile !== false);
-
-  const availabilityConfig = {
-    available: { color: 'bg-green-100 text-green-800 border-green-200', label: 'Available for Work' },
-    busy: { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', label: 'Currently Busy' },
-    not_available: { color: 'bg-red-100 text-red-800 border-red-200', label: 'Not Available' },
-  };
-
-  const availability = availabilityConfig[talent.availability_status === 'available' ? 'available' : 'not_available'];
+  const experiences = talent?.experiences || profile?.experiences || [];
+  const education = talent?.education || profile?.education || [];
+  const portfolios = talent?.portfolios || profile?.portfolios || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Show diagnostics in development */}
+      {showDiagnostics && <DiagnosticInfo data={data} talent={talent} profile={profile} />}
+
+      {/* Toggle diagnostics button (dev only) */}
+      {process.env.NODE_ENV === 'development' && (
+        <button
+          onClick={() => setShowDiagnostics(!showDiagnostics)}
+          className="fixed bottom-4 left-4 bg-purple-600 text-white px-3 py-2 rounded-lg text-xs z-50 hover:bg-purple-700"
+        >
+          {showDiagnostics ? '🙈 Hide Debug' : '👁️ Show Debug'}
+        </button>
+      )}
+
       {/* Back Button */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -112,583 +252,226 @@ export default function TalentProfilePage() {
       </div>
 
       {/* Hero Section */}
-      <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600">
-        {talent.cover_image && (
-          <img
-            src={`${process.env.NEXT_PUBLIC_API_URL}/storage/${talent.cover_image}`}
-            alt="Cover"
-            className="w-full h-full object-cover"
-          />
-        )}
-      </div>
+      <div className="bg-gradient-to-br from-blue-500 to-purple-600 h-64"></div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative">
           {/* Profile Card */}
-          <div className="bg-white rounded-lg shadow-lg p-8 -mt-24 relative z-10">
+          <div className="bg-white rounded-lg shadow-lg p-8 -mt-32 relative z-10">
             <div className="flex flex-col md:flex-row gap-8">
               {/* Avatar */}
               <div className="relative">
-                {talent.avatar ? (
-                  <img
-                    src={`${process.env.NEXT_PUBLIC_API_URL}/storage/${talent.avatar}`}
-                    alt={talent.first_name}
-                    className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto md:mx-0"
-                  />
-                ) : (
-                  <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-4xl text-white font-bold mx-auto md:mx-0">
-                    {talent.first_name?.charAt(0)}{talent.last_name?.charAt(0)}
-                  </div>
-                )}
-                
-                {/* Availability Badge on Avatar */}
-                {talent.availability_status === 'available' && (
-                  <div className="absolute bottom-2 right-2 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
-                )}
+                <img
+                  src={
+                    talent.avatar
+                      ? `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '')}/storage/${talent.avatar}`
+                      : `https://ui-avatars.com/api/?name=${encodeURIComponent(talent.first_name + ' ' + talent.last_name)}&size=128&background=random`
+                  }
+                  alt={`${talent.first_name} ${talent.last_name}`}
+                  className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto md:mx-0"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/default-avatar.png';
+                  }}
+                />
               </div>
 
-              {/* Info */}
+              {/* Basic Info */}
               <div className="flex-1 text-center md:text-left">
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-900">
-                      {talent.first_name} {talent.last_name}
-                    </h1>
-                    <p className="text-xl text-gray-600 mt-1">
-                      {profile?.professional_title || primarySkill?.skill?.name || 'Professional'}
-                    </p>
-                    {(talent.city || talent.state || talent.country) && (
-                      <p className="text-gray-500 flex items-center gap-2 mt-2 justify-center md:justify-start">
-                        <MapPin className="w-4 h-4" />
-                        {[talent.city, talent.state, talent.country].filter(Boolean).join(', ')}
-                      </p>
-                    )}
-                  </div>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {talent.first_name} {talent.last_name}
+                </h1>
+                <p className="text-xl text-gray-600 mt-1">{profile?.professional_title || 'Professional'}</p>
 
-                  {/* Availability Badge */}
-                  <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border ${availability.color}`}>
-                    {availability.label}
-                  </span>
-                </div>
-
-                {/* Stats Row */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-6 p-6 bg-gray-50 rounded-lg">
+                {/* Stats */}
+                <div className="flex flex-wrap gap-6 mt-4 justify-center md:justify-start">
                   {profile?.hourly_rate_min && (
-                    <div className="text-center md:text-left">
-                      <p className="text-sm text-gray-600">Hourly Rate</p>
-                      <p className="font-semibold text-gray-900 text-lg">
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <DollarSign className="w-5 h-5 text-green-600" />
+                      <span className="font-semibold">
                         ${profile.hourly_rate_min}
-                        {profile.hourly_rate_max && profile.hourly_rate_max !== profile.hourly_rate_min &&
-                          `-$${profile.hourly_rate_max}`
-                        }
-                      </p>
+                        {profile.hourly_rate_max && ` - $${profile.hourly_rate_max}`}/hr
+                      </span>
                     </div>
                   )}
 
-                  {profile?.experience_level && (
-                    <div className="text-center md:text-left">
-                      <p className="text-sm text-gray-600">Experience</p>
-                      <p className="font-semibold text-gray-900 text-lg capitalize">
-                        {profile.experience_level}
-                      </p>
+                  {profile?.average_rating && (
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                      <span className="font-semibold">
+                        {Number(profile.average_rating).toFixed(1)} ({profile.total_ratings || 0} reviews)
+                      </span>
                     </div>
                   )}
 
-                  {profile?.average_rating && parseFloat(profile.average_rating) > 0 && (
-                    <div className="text-center md:text-left">
-                      <p className="text-sm text-gray-600">Rating</p>
-                      <p className="font-semibold text-gray-900 text-lg flex items-center gap-1 justify-center md:justify-start">
-                        <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                        {parseFloat(profile.average_rating).toFixed(1)}
-                        <span className="text-sm text-gray-500">
-                          ({profile.total_ratings || 0})
-                        </span>
-                      </p>
+                  {stats?.profile_views > 0 && (
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <Eye className="w-5 h-5 text-blue-600" />
+                      <span>{stats.profile_views} views</span>
                     </div>
                   )}
-
-                  <div className="text-center md:text-left">
-                    <p className="text-sm text-gray-600">Projects</p>
-                    <p className="font-semibold text-gray-900 text-lg">
-                      {stats.total_projects || 0}
-                    </p>
-                  </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="mt-6 flex flex-wrap gap-3 justify-center md:justify-start">
-                  <button 
-                    onClick={() => setShowContactModal(true)}
-                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium inline-flex items-center gap-2 shadow-sm"
-                  >
-                    <Mail className="w-4 h-4" />
-                    Contact Talent
-                  </button>
-                  <button className="px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium">
-                    Save Profile
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8 pb-12">
-            {/* Left Column - Main Content */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* About */}
-              {profile?.summary && (
-                <Section title="About">
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                    {profile.summary}
-                  </p>
-                </Section>
-              )}
-
-              {/* Skills */}
-              {visibleSkills.length > 0 && (
-                <Section title="Skills & Expertise">
-                  <div className="grid grid-cols-1 gap-4">
-                    {visibleSkills
-                      .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
-                      .map((skillItem: any) => (
-                        <div
-                          key={skillItem.id}
-                          className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              {skillItem.skill?.icon && (
-                                <span className="text-2xl">{skillItem.skill.icon}</span>
-                              )}
-                              <h3 className="font-semibold text-gray-900">
-                                {skillItem.skill?.name || skillItem.name}
-                                {skillItem.is_primary && (
-                                  <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                                    Primary
-                                  </span>
-                                )}
-                              </h3>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                            {skillItem.level_display && (
-                              <span className="px-2 py-1 bg-gray-100 rounded">
-                                {skillItem.level_display}
-                              </span>
-                            )}
-                            {skillItem.years_of_experience > 0 && (
-                              <span>{skillItem.years_of_experience}+ years</span>
-                            )}
-                          </div>
-
-                          {skillItem.description && (
-                            <p className="text-sm text-gray-600 mb-2">
-                              {skillItem.description}
-                            </p>
-                          )}
-
-                          {skillItem.certifications && skillItem.certifications.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1">
-                              {skillItem.certifications.map((cert: any, idx: number) => (
-                                <span
-                                  key={idx}
-                                  className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-1 rounded"
-                                >
-                                  <Award className="w-3 h-3" />
-                                  {cert.name || cert}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Skill Media */}
-                          {(skillItem.image_url || skillItem.video_url) && (
-                            <div className="mt-3 flex gap-2">
-                              {skillItem.image_url && (
-                                <a
-                                  href={skillItem.image_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
-                                >
-                                  <ImageIcon className="w-3 h-3" />
-                                  View Work
-                                </a>
-                              )}
-                              {skillItem.video_url && (
-                                <a
-                                  href={skillItem.video_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
-                                >
-                                  <Play className="w-3 h-3" />
-                                  Watch Demo
-                                </a>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                  </div>
-                </Section>
-              )}
-
-              {/* Experience */}
-              {experiences.length > 0 && (
-                <Section title="Work Experience">
-                  <div className="space-y-6">
-                    {experiences.map((exp: any) => (
-                      <div key={exp.id} className="border-l-2 border-blue-500 pl-4">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {exp.title || exp.job_title}
-                        </h3>
-                        <p className="text-gray-600">
-                          {exp.company || exp.company_name}
-                          {exp.employment_type && ` • ${exp.employment_type}`}
-                        </p>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {exp.start_date}
-                          {' - '}
-                          {exp.is_current ? 'Present' : exp.end_date || 'Present'}
-                          {exp.location && ` • ${exp.location}`}
-                        </p>
-                        {exp.description && (
-                          <p className="text-gray-700 mt-2 whitespace-pre-line leading-relaxed">
-                            {exp.description}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </Section>
-              )}
-
-              {/* Education */}
-              {education.length > 0 && (
-                <Section title="Education">
-                  <div className="space-y-4">
-                    {education.map((edu: any) => (
-                      <div key={edu.id} className="border-l-2 border-purple-500 pl-4">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {edu.degree}
-                          {edu.field_of_study && ` in ${edu.field_of_study}`}
-                        </h3>
-                        <p className="text-gray-600">
-                          {edu.institution || edu.institution_name}
-                        </p>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {edu.start_date}
-                          {' - '}
-                          {edu.is_current ? 'Present' : edu.end_date || 'Present'}
-                        </p>
-                        {edu.description && (
-                          <p className="text-gray-700 mt-2">{edu.description}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </Section>
-              )}
-
-              {/* Portfolio */}
-              {portfolios.length > 0 && (
-                <Section title="Portfolio">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {portfolios
-                      .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
-                      .map((item: any) => (
-                        <div
-                          key={item.id}
-                          className="border border-gray-200 rounded-lg overflow-hidden hover:border-blue-300 transition-colors group cursor-pointer"
-                        >
-                          {(item.image_url || item.thumbnail_url) && (
-                            <img
-                              src={
-                                item.image_url?.startsWith('http')
-                                  ? item.image_url
-                                  : `${process.env.NEXT_PUBLIC_API_URL}/storage/${item.image_url || item.thumbnail_url}`
-                              }
-                              alt={item.title}
-                              className="w-full h-48 object-cover group-hover:scale-105 transition-transform"
-                            />
-                          )}
-                          <div className="p-4">
-                            <h3 className="font-semibold text-gray-900">{item.title}</h3>
-                            {item.description && (
-                              <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-                                {item.description}
-                              </p>
-                            )}
-                            {(item.url || item.external_url) && (
-                              <a
-                                href={item.url || item.external_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 mt-3"
-                              >
-                                View Project
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </Section>
-              )}
-            </div>
-
-            {/* Right Column - Sidebar */}
-            <div className="lg:col-span-1 space-y-6">
-              {/* Contact Card */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Contact Information</h3>
-                <div className="space-y-3">
+                {/* Contact Info */}
+                <div className="flex flex-wrap gap-4 mt-4 justify-center md:justify-start">
                   {talent.email && (
-                    <div className="flex items-start gap-2">
-                      <Mail className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs text-gray-500">Email</p>
-                        <p className="text-sm text-gray-900 break-all">{talent.email}</p>
-                      </div>
-                    </div>
+                    <a
+                      href={`mailto:${talent.email}`}
+                      className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
+                    >
+                      <Mail className="w-4 h-4" />
+                      {talent.email}
+                    </a>
                   )}
                   {talent.phone && (
-                    <div className="flex items-start gap-2">
-                      <Phone className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs text-gray-500">Phone</p>
-                        <p className="text-sm text-gray-900">{talent.phone}</p>
-                      </div>
+                    <a
+                      href={`tel:${talent.phone}`}
+                      className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
+                    >
+                      <Phone className="w-4 h-4" />
+                      {talent.phone}
+                    </a>
+                  )}
+                  {talent.location && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <MapPin className="w-4 h-4" />
+                      {talent.location}
                     </div>
                   )}
-                </div>
-                <button
-                  onClick={() => setShowContactModal(true)}
-                  className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center justify-center gap-2"
-                >
-                  <Mail className="w-4 h-4" />
-                  Send Message
-                </button>
-              </div>
-
-              {/* Social Links */}
-              {(talent.linkedin_url || talent.twitter_url || talent.website) && (
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">Links</h3>
-                  <div className="space-y-2">
-                    {talent.linkedin_url && (
-                      <a
-                        href={talent.linkedin_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
-                      >
-                        <Linkedin className="w-4 h-4" />
-                        LinkedIn
-                      </a>
-                    )}
-                    {talent.website && (
-                      <a
-                        href={talent.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
-                      >
-                        <WebIcon className="w-4 h-4" />
-                        Website
-                      </a>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Languages */}
-              {talent.languages && talent.languages.length > 0 && (
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">Languages</h3>
-                  <div className="space-y-2">
-                    {talent.languages.map((lang: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-700">
-                          {typeof lang === 'string' ? lang : lang.language || lang}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Availability */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Availability</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Status</span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      talent.availability_status === 'available'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {talent.availability_status === 'available' ? 'Available' : 'Not Available'}
-                    </span>
-                  </div>
-                  {profile?.notice_period && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Notice Period</span>
-                      <span className="text-sm font-medium text-gray-900">
-                        {profile.notice_period} days
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Stats */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Quick Stats</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Profile Views</span>
-                    <span className="font-semibold text-gray-900">
-                      {profile?.profile_views || 0}
-                    </span>
-                  </div>
-                  {stats.total_projects > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Projects Completed</span>
-                      <span className="font-semibold text-gray-900">
-                        {stats.total_projects}
-                      </span>
-                    </div>
-                  )}
-                  {stats.total_reviews > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Total Reviews</span>
-                      <span className="font-semibold text-gray-900">
-                        {stats.total_reviews}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Profile Completion */}
-              {profile?.profile_completion_percentage && (
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">Profile Completion</h3>
-                  <div className="relative pt-1">
-                    <div className="flex mb-2 items-center justify-between">
-                      <span className="text-xs font-semibold inline-block text-blue-600">
-                        {profile.profile_completion_percentage}%
-                      </span>
-                    </div>
-                    <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
-                      <div
-                        style={{ width: `${profile.profile_completion_percentage}%` }}
-                        className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-600 transition-all"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Member Since */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="w-4 h-4" />
-                  <span>
-                    Member since{' '}
-                    {new Date(talent.created_at).toLocaleDateString('en-US', {
-                      month: 'long',
-                      year: 'numeric',
-                    })}
-                  </span>
                 </div>
               </div>
             </div>
+
+            {/* Summary */}
+            {profile?.summary && (
+              <div className="mt-6 pt-6 border-t">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">About</h2>
+                <p className="text-gray-700 whitespace-pre-wrap">{profile.summary}</p>
+              </div>
+            )}
           </div>
-        </div>
-      </div>
 
-      {/* Contact Modal */}
-      {showContactModal && (
-        <ContactModal talent={talent} onClose={() => setShowContactModal(false)} />
-      )}
-    </div>
-  );
-}
+          {/* Skills Section */}
+          {skills.length > 0 && (
+            <div className="bg-white rounded-lg shadow-lg p-8 mt-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Skills & Expertise</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {skills.map((skillItem: any) => (
+                  <div key={skillItem.id} className="border rounded-lg p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl">{skillItem.skill?.icon || '🎯'}</span>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">{skillItem.skill?.name}</h3>
+                          <span className="text-sm text-gray-600">{skillItem.level_display}</span>
+                        </div>
+                      </div>
+                      {skillItem.is_primary && (
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                          Primary
+                        </span>
+                      )}
+                    </div>
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">{title}</h2>
-      {children}
-    </div>
-  );
-}
+                    {skillItem.description && (
+                      <p className="text-gray-700 text-sm mb-4">{skillItem.description}</p>
+                    )}
 
-function ContactModal({ talent, onClose }: { talent: any; onClose: () => void }) {
-  const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
+                    {skillItem.years_of_experience > 0 && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Calendar className="w-4 h-4" />
+                        <span>{skillItem.years_of_experience}+ years experience</span>
+                      </div>
+                    )}
 
-  const handleSend = async () => {
-    if (!message.trim()) return;
+                    {skillItem.image_url && (
+                      <img
+                        src={skillItem.image_url}
+                        alt={skillItem.skill?.name}
+                        className="mt-4 w-full h-48 object-cover rounded-lg"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-    try {
-      setSending(true);
-      await api.post('/api/v1/messages', {
-        recipient_id: talent.id,
-        message: message,
-      });
-      alert('Message sent successfully!');
-      onClose();
-    } catch (error) {
-      console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
-    } finally {
-      setSending(false);
-    }
-  };
+          {/* Experience Section */}
+          {experiences.length > 0 && (
+            <div className="bg-white rounded-lg shadow-lg p-8 mt-6">
+              <div className="flex items-center gap-2 mb-6">
+                <Briefcase className="w-6 h-6 text-blue-600" />
+                <h2 className="text-2xl font-bold text-gray-900">Work Experience</h2>
+              </div>
+              <div className="space-y-6">
+                {experiences.map((exp: any) => (
+                  <div key={exp.id} className="border-l-4 border-blue-600 pl-4">
+                    <h3 className="text-lg font-semibold text-gray-900">{exp.job_title}</h3>
+                    <p className="text-gray-600">{exp.company}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {exp.start_date} - {exp.is_current ? 'Present' : exp.end_date}
+                    </p>
+                    {exp.description && <p className="mt-2 text-gray-700 text-sm">{exp.description}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-md w-full p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-gray-900">
-            Contact {talent.first_name}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            ✕
-          </button>
-        </div>
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Write your message..."
-          rows={6}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
-        />
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSend}
-            disabled={!message.trim() || sending}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {sending ? 'Sending...' : 'Send Message'}
-          </button>
+          {/* Education Section */}
+          {education.length > 0 && (
+            <div className="bg-white rounded-lg shadow-lg p-8 mt-6">
+              <div className="flex items-center gap-2 mb-6">
+                <GraduationCap className="w-6 h-6 text-purple-600" />
+                <h2 className="text-2xl font-bold text-gray-900">Education</h2>
+              </div>
+              <div className="space-y-4">
+                {education.map((edu: any) => (
+                  <div key={edu.id} className="border-l-4 border-purple-600 pl-4">
+                    <h3 className="text-lg font-semibold text-gray-900">{edu.degree}</h3>
+                    <p className="text-gray-600">{edu.institution}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {edu.start_date} - {edu.is_current ? 'Present' : edu.end_date}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Portfolio Section */}
+          {portfolios.length > 0 && (
+            <div className="bg-white rounded-lg shadow-lg p-8 mt-6 mb-8">
+              <div className="flex items-center gap-2 mb-6">
+                <FolderOpen className="w-6 h-6 text-green-600" />
+                <h2 className="text-2xl font-bold text-gray-900">Portfolio</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {portfolios.map((item: any) => (
+                  <div key={item.id} className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+                    {item.image_path && (
+                      <img
+                        src={`${process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '')}/storage/${item.image_path}`}
+                        alt={item.title}
+                        className="w-full h-48 object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = `https://placehold.co/600x400/e2e8f0/64748b?text=${encodeURIComponent(item.title || 'Portfolio')}`;
+                        }}
+                      />
+                    )}
+                    <div className="p-4">
+                      <h3 className="font-semibold text-gray-900">{item.title}</h3>
+                      {item.description && <p className="text-sm text-gray-600 mt-2">{item.description}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
