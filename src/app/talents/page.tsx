@@ -459,9 +459,10 @@ function TalentCard({
   talent, 
   viewMode 
 }: { 
-  talent: TalentProfile; 
+  talent: any; 
   viewMode: 'grid' | 'list' 
 }) {
+  const profile = talent.talent_profile;
   const primarySkill = talent.skills?.find(s => s.is_primary);
   const skillsList = talent.skills || [];
   

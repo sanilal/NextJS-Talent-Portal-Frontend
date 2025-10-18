@@ -31,8 +31,7 @@ export default function TalentProfilePage() {
   const talentId = params.id as string;
   const [showContactModal, setShowContactModal] = useState(false);
 
-  // Try to use React Query if available, fallback to useState
-  const queryResult = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['public-talent', talentId],
     queryFn: async () => {
       const response = await api.get(`/api/v1/public/talents/${talentId}`);
@@ -40,33 +39,6 @@ export default function TalentProfilePage() {
     },
     enabled: !!talentId,
   });
-
-  // Fallback state for environments without React Query
-  const [fallbackData, setFallbackData] = useState<any>(null);
-  const [fallbackLoading, setFallbackLoading] = useState(true);
-
-  useEffect(() => {
-    // Only use fallback if React Query is not working
-    if (!queryResult.data && !queryResult.isLoading) {
-      fetchTalentProfile();
-    }
-  }, [talentId, queryResult.data, queryResult.isLoading]);
-
-  const fetchTalentProfile = async () => {
-    try {
-      setFallbackLoading(true);
-      const response = await api.get(`/api/v1/public/talents/${talentId}`);
-      setFallbackData(response.data);
-    } catch (error) {
-      console.error('Error fetching talent:', error);
-    } finally {
-      setFallbackLoading(false);
-    }
-  };
-
-  const data = queryResult.data || fallbackData;
-  const isLoading = queryResult.isLoading || fallbackLoading;
-  const error = queryResult.error;
 
   if (isLoading) {
     return (
@@ -82,7 +54,7 @@ export default function TalentProfilePage() {
     );
   }
 
-  if (error || !data) {
+  if (error || !data || !data.success) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -100,15 +72,18 @@ export default function TalentProfilePage() {
     );
   }
 
-  // Handle both response structures: { data: { talent, stats } } or direct talent object
-  const talent = data.data?.talent || data;
-  const stats = data.data?.stats || data.stats || {};
-  const profile = talent.talentProfile || talent.talent_profile || talent;
+  // FIXED: Correct data access for the new API structure
+  const talent = data.data?.talent || data.data;
+  const stats = data.data?.stats || {};
   
-  const experiences = talent.experiences || [];
-  const education = talent.education || [];
-  const portfolios = talent.portfolios || [];
-  const skills = talent.skills || [];
+  // FIXED: Access talent_profile correctly
+  const profile = talent.talent_profile;
+  
+  // FIXED: Access relationships correctly
+  const experiences = profile?.experiences || talent.experiences || [];
+  const education = profile?.education || talent.education || [];
+  const portfolios = profile?.portfolios || talent.portfolios || [];
+  const skills = profile?.skills || [];
   
   const primarySkill = skills.find((s: any) => s.is_primary);
   const visibleSkills = skills.filter((s: any) => s.show_on_profile !== false);
@@ -119,8 +94,7 @@ export default function TalentProfilePage() {
     not_available: { color: 'bg-red-100 text-red-800 border-red-200', label: 'Not Available' },
   };
 
-  const isAvailable = profile?.is_available || profile?.availability === 'available';
-  const availability = availabilityConfig[isAvailable ? 'available' : 'not_available'];
+  const availability = availabilityConfig[talent.availability_status === 'available' ? 'available' : 'not_available'];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -139,7 +113,13 @@ export default function TalentProfilePage() {
 
       {/* Hero Section */}
       <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600">
-        {/* Could add cover image here */}
+        {talent.cover_image && (
+          <img
+            src={`${process.env.NEXT_PUBLIC_API_URL}/storage/${talent.cover_image}`}
+            alt="Cover"
+            className="w-full h-full object-cover"
+          />
+        )}
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -149,9 +129,9 @@ export default function TalentProfilePage() {
             <div className="flex flex-col md:flex-row gap-8">
               {/* Avatar */}
               <div className="relative">
-                {profile?.avatar_url ? (
+                {talent.avatar ? (
                   <img
-                    src={`${process.env.NEXT_PUBLIC_API_URL}/storage/${profile.avatar_url}`}
+                    src={`${process.env.NEXT_PUBLIC_API_URL}/storage/${talent.avatar}`}
                     alt={talent.first_name}
                     className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover mx-auto md:mx-0"
                   />
@@ -162,7 +142,7 @@ export default function TalentProfilePage() {
                 )}
                 
                 {/* Availability Badge on Avatar */}
-                {isAvailable && (
+                {talent.availability_status === 'available' && (
                   <div className="absolute bottom-2 right-2 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
                 )}
               </div>
@@ -177,10 +157,10 @@ export default function TalentProfilePage() {
                     <p className="text-xl text-gray-600 mt-1">
                       {profile?.professional_title || primarySkill?.skill?.name || 'Professional'}
                     </p>
-                    {talent.location && (
+                    {(talent.city || talent.state || talent.country) && (
                       <p className="text-gray-500 flex items-center gap-2 mt-2 justify-center md:justify-start">
                         <MapPin className="w-4 h-4" />
-                        {talent.location}
+                        {[talent.city, talent.state, talent.country].filter(Boolean).join(', ')}
                       </p>
                     )}
                   </div>
@@ -193,12 +173,12 @@ export default function TalentProfilePage() {
 
                 {/* Stats Row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-6 p-6 bg-gray-50 rounded-lg">
-                  {(profile?.hourly_rate_min || profile?.hourly_rate) && (
+                  {profile?.hourly_rate_min && (
                     <div className="text-center md:text-left">
                       <p className="text-sm text-gray-600">Hourly Rate</p>
                       <p className="font-semibold text-gray-900 text-lg">
-                        ${profile?.hourly_rate_min || profile?.hourly_rate}
-                        {profile?.hourly_rate_max && profile.hourly_rate_max !== profile.hourly_rate_min &&
+                        ${profile.hourly_rate_min}
+                        {profile.hourly_rate_max && profile.hourly_rate_max !== profile.hourly_rate_min &&
                           `-$${profile.hourly_rate_max}`
                         }
                       </p>
@@ -214,14 +194,14 @@ export default function TalentProfilePage() {
                     </div>
                   )}
 
-                  {(profile?.average_rating || profile?.rating_average) && (
+                  {profile?.average_rating && parseFloat(profile.average_rating) > 0 && (
                     <div className="text-center md:text-left">
                       <p className="text-sm text-gray-600">Rating</p>
                       <p className="font-semibold text-gray-900 text-lg flex items-center gap-1 justify-center md:justify-start">
                         <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                        {(profile.average_rating || profile.rating_average).toFixed(1)}
+                        {parseFloat(profile.average_rating).toFixed(1)}
                         <span className="text-sm text-gray-500">
-                          ({profile.total_ratings || profile.rating_count || 0})
+                          ({profile.total_ratings || 0})
                         </span>
                       </p>
                     </div>
@@ -230,7 +210,7 @@ export default function TalentProfilePage() {
                   <div className="text-center md:text-left">
                     <p className="text-sm text-gray-600">Projects</p>
                     <p className="font-semibold text-gray-900 text-lg">
-                      {stats.total_projects || talent.completed_projects || 0}
+                      {stats.total_projects || 0}
                     </p>
                   </div>
                 </div>
@@ -293,12 +273,12 @@ export default function TalentProfilePage() {
                           </div>
 
                           <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                            {skillItem.proficiency_level && (
-                              <span className="px-2 py-1 bg-gray-100 rounded capitalize">
-                                {skillItem.proficiency_level}
+                            {skillItem.level_display && (
+                              <span className="px-2 py-1 bg-gray-100 rounded">
+                                {skillItem.level_display}
                               </span>
                             )}
-                            {skillItem.years_of_experience && (
+                            {skillItem.years_of_experience > 0 && (
                               <span>{skillItem.years_of_experience}+ years</span>
                             )}
                           </div>
@@ -496,13 +476,13 @@ export default function TalentProfilePage() {
               </div>
 
               {/* Social Links */}
-              {(profile?.linkedin_url || profile?.github_url || profile?.website_url || profile?.portfolio_url) && (
+              {(talent.linkedin_url || talent.twitter_url || talent.website) && (
                 <div className="bg-white rounded-lg shadow-sm p-6">
                   <h3 className="font-semibold text-gray-900 mb-4">Links</h3>
                   <div className="space-y-2">
-                    {profile.linkedin_url && (
+                    {talent.linkedin_url && (
                       <a
-                        href={profile.linkedin_url}
+                        href={talent.linkedin_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
@@ -511,20 +491,9 @@ export default function TalentProfilePage() {
                         LinkedIn
                       </a>
                     )}
-                    {profile.github_url && (
+                    {talent.website && (
                       <a
-                        href={profile.github_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
-                      >
-                        <Github className="w-4 h-4" />
-                        GitHub
-                      </a>
-                    )}
-                    {(profile.website_url || profile.portfolio_url) && (
-                      <a
-                        href={profile.website_url || profile.portfolio_url}
+                        href={talent.website}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
@@ -538,18 +507,15 @@ export default function TalentProfilePage() {
               )}
 
               {/* Languages */}
-              {profile?.languages && profile.languages.length > 0 && (
+              {talent.languages && talent.languages.length > 0 && (
                 <div className="bg-white rounded-lg shadow-sm p-6">
                   <h3 className="font-semibold text-gray-900 mb-4">Languages</h3>
                   <div className="space-y-2">
-                    {profile.languages.map((lang: any, idx: number) => (
+                    {talent.languages.map((lang: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between">
                         <span className="text-sm text-gray-700">
-                          {typeof lang === 'string' ? lang : lang.language}
+                          {typeof lang === 'string' ? lang : lang.language || lang}
                         </span>
-                        {typeof lang !== 'string' && lang.proficiency && (
-                          <span className="text-xs text-gray-500 capitalize">{lang.proficiency}</span>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -563,11 +529,11 @@ export default function TalentProfilePage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Status</span>
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      isAvailable
+                      talent.availability_status === 'available'
                         ? 'bg-green-100 text-green-700'
                         : 'bg-gray-100 text-gray-700'
                     }`}>
-                      {isAvailable ? 'Available' : 'Not Available'}
+                      {talent.availability_status === 'available' ? 'Available' : 'Not Available'}
                     </span>
                   </div>
                   {profile?.notice_period && (
@@ -575,14 +541,6 @@ export default function TalentProfilePage() {
                       <span className="text-sm text-gray-600">Notice Period</span>
                       <span className="text-sm font-medium text-gray-900">
                         {profile.notice_period} days
-                      </span>
-                    </div>
-                  )}
-                  {stats.response_time && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Response Time</span>
-                      <span className="text-sm font-medium text-gray-900">
-                        {stats.response_time}
                       </span>
                     </div>
                   )}
@@ -599,15 +557,15 @@ export default function TalentProfilePage() {
                       {profile?.profile_views || 0}
                     </span>
                   </div>
-                  {(stats.total_projects || talent.completed_projects) && (
+                  {stats.total_projects > 0 && (
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Projects Completed</span>
                       <span className="font-semibold text-gray-900">
-                        {stats.total_projects || talent.completed_projects}
+                        {stats.total_projects}
                       </span>
                     </div>
                   )}
-                  {stats.total_reviews && (
+                  {stats.total_reviews > 0 && (
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Total Reviews</span>
                       <span className="font-semibold text-gray-900">
