@@ -1,92 +1,138 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { 
   Briefcase, 
   Users, 
   FileText, 
-  TrendingUp,
   Clock,
   Eye,
-  CheckCircle,
   Plus,
-  ArrowRight
+  ArrowRight,
+  AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api/axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { DashboardStats, Application, Project } from '@/types';
 import { VerificationBanner } from '@/components/VerificationBanner';
 
 export default function RecruiterDashboard() {
   const { user, token, isAuthenticated, _hasHydrated } = useAuthStore();
+  const [apiErrors, setApiErrors] = useState<string[]>([]);
 
   useEffect(() => {
     console.log('🔍 Recruiter Dashboard Auth State:', {
       user,
+      userType: user?.user_type,
       token: token ? 'EXISTS' : 'NULL',
       isAuthenticated,
       hasHydrated: _hasHydrated,
     });
   }, [user, token, isAuthenticated, _hasHydrated]);
 
-  // ✅ FIX: Add enabled option to wait for hydration
-  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
+  // Fetch dashboard stats
+  const { data: stats, isLoading: statsLoading, error: statsError } = useQuery<DashboardStats>({
     queryKey: ['recruiter-dashboard-stats'],
-    enabled: _hasHydrated && isAuthenticated, // ← Don't run until hydrated!
+    enabled: _hasHydrated && isAuthenticated,
+    retry: 1,
     queryFn: async () => {
       console.log('📊 Fetching recruiter stats...');
-      try {
-        const response = await api.get('/recruiter/dashboard');
-        return response.data || {};
-      } catch (error) {
-        console.error('Failed to fetch stats:', error);
-        return {
-          active_projects: 0,
-          total_applications: 0,
-          pending_applications: 0,
-          total_projects: 0,
-        };
-      }
+      const response = await api.get('/recruiter/dashboard');
+      return response.data || {};
     },
   });
 
-  // ✅ FIX: Add enabled option
-  const { data: projects, isLoading: projectsLoading } = useQuery<Project[]>({
-    queryKey: ['active-projects'],
-    enabled: _hasHydrated && isAuthenticated, // ← Wait for hydration!
+  // Fetch user's projects (not filtered by status to get all projects)
+  const { data: projectsResponse, isLoading: projectsLoading, error: projectsError } = useQuery({
+    queryKey: ['recruiter-projects'],
+    enabled: _hasHydrated && isAuthenticated,
+    retry: 1,
     queryFn: async () => {
-      console.log('📂 Fetching projects...');
-      try {
-        const response = await api.get('/projects?status=published&limit=5');
-        return response.data?.data || response.data || [];
-      } catch (error) {
-        console.error('Failed to fetch projects:', error);
+      console.log('📂 Fetching recruiter projects...');
+      // Get all projects for this recruiter, limit to 5 most recent
+      const response = await api.get('/projects?limit=5&sort_by=created_at&sort_order=desc');
+      return response.data;
+    },
+  });
+
+  // Extract projects array from response
+  const projects = projectsResponse?.data || projectsResponse || [];
+
+  // Fetch applications for all user's projects
+  const { data: allApplications, isLoading: appsLoading, error: appsError } = useQuery<Application[]>({
+    queryKey: ['recruiter-applications', projects],
+    enabled: _hasHydrated && isAuthenticated && projects.length > 0,
+    retry: 1,
+    queryFn: async () => {
+      console.log('📝 Fetching applications for projects...');
+      
+      if (!projects || projects.length === 0) {
         return [];
       }
+
+      // Fetch applications for each project and combine them
+      const applicationPromises = projects.slice(0, 5).map(async (project: any) => {
+        try {
+          const response = await api.get(`/projects/${project.id}/applications`);
+          const apps = response.data?.data || response.data || [];
+          // Add project info to each application
+          return apps.map((app: any) => ({
+            ...app,
+            project: project,
+          }));
+        } catch (error) {
+          console.error(`Failed to fetch applications for project ${project.id}:`, error);
+          return [];
+        }
+      });
+
+      const results = await Promise.all(applicationPromises);
+      const combined = results.flat();
+      
+      // Sort by created_at and return most recent 5
+      return combined
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 5);
     },
   });
 
-  // ✅ FIX: Add enabled option
-  const { data: applications, isLoading: appsLoading } = useQuery<Application[]>({
-    queryKey: ['recent-applications-received'],
-    enabled: _hasHydrated && isAuthenticated, // ← Wait for hydration!
-    queryFn: async () => {
-      console.log('📝 Fetching applications...');
-      try {
-        const response = await api.get('/recruiter/applications?limit=5');
-        return response.data?.data || response.data || [];
-      } catch (error) {
-        console.error('Failed to fetch applications:', error);
-        return [];
+  // Collect API errors for display
+  useEffect(() => {
+    const errors: string[] = [];
+    
+    if (statsError) {
+      const err = statsError as any;
+      if (err.response?.status === 403) {
+        errors.push('Dashboard requires recruiter permissions. Check user_type in database.');
+      } else if (err.response?.status === 404) {
+        errors.push('Dashboard endpoint not found');
+      } else if (err.response?.status === 401) {
+        errors.push('Authentication failed. Try logging out and back in.');
       }
-    },
-  });
+    }
+    
+    if (projectsError) {
+      const err = projectsError as any;
+      if (err.response?.status === 401) {
+        errors.push('Projects endpoint authentication failed');
+      }
+    }
+    
+    if (appsError) {
+      const err = appsError as any;
+      if (err.response?.status === 404) {
+        errors.push('Unable to fetch applications');
+      }
+    }
+    
+    setApiErrors(errors);
+  }, [statsError, projectsError, appsError]);
 
-  // ✅ Show loading state while hydrating
   if (!_hasHydrated) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -122,7 +168,7 @@ export default function RecruiterDashboard() {
     },
     {
       title: 'Total Views',
-      value: stats?.total_projects || 0,
+      value: stats?.total_views || 0,
       icon: Eye,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100 dark:bg-purple-900/20',
@@ -133,9 +179,26 @@ export default function RecruiterDashboard() {
     <div className="space-y-8">
       {/* Page Header */}
       <div>
-        {/* Show banner if user needs verification */}
         {user?.account_status === 'pending_verification' && (
           <VerificationBanner />
+        )}
+        
+        {/* API Error Warnings */}
+        {apiErrors.length > 0 && (
+          <Alert className="mb-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20">
+            <AlertCircle className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-sm text-yellow-800 dark:text-yellow-200">
+              <div className="font-semibold mb-2">API Configuration Issues Detected:</div>
+              <ul className="list-disc list-inside space-y-1">
+                {apiErrors.map((error, idx) => (
+                  <li key={idx}>{error}</li>
+                ))}
+              </ul>
+              <div className="mt-2 text-xs">
+                Current user_type: <span className="font-mono">{user?.user_type || 'unknown'}</span>
+              </div>
+            </AlertDescription>
+          </Alert>
         )}
         
         <div className="flex items-center justify-between">
@@ -146,6 +209,11 @@ export default function RecruiterDashboard() {
             <p className="text-gray-600 dark:text-gray-400 mt-2">
               Manage your projects and review applications
             </p>
+            {user?.user_type && (
+              <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+                Account type: <span className="font-medium capitalize">{user.user_type}</span>
+              </p>
+            )}
           </div>
           <Link href="/dashboard/projects/create">
             <Button size="lg">
@@ -167,7 +235,11 @@ export default function RecruiterDashboard() {
                     {stat.title}
                   </p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
-                    {stat.value}
+                    {statsLoading ? (
+                      <span className="inline-block w-12 h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></span>
+                    ) : (
+                      stat.value
+                    )}
                   </p>
                 </div>
                 <div className={`p-3 rounded-lg ${stat.bgColor}`}>
@@ -184,7 +256,7 @@ export default function RecruiterDashboard() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Active Projects</CardTitle>
+              <CardTitle>Recent Projects</CardTitle>
               <Link href="/dashboard/projects">
                 <Button variant="ghost" size="sm">
                   View All
@@ -204,7 +276,7 @@ export default function RecruiterDashboard() {
               </div>
             ) : projects && projects.length > 0 ? (
               <div className="space-y-4">
-                {projects.map((project) => (
+                {projects.map((project: any) => (
                   <Link
                     key={project.id}
                     href={`/dashboard/projects/${project.id}`}
@@ -219,12 +291,20 @@ export default function RecruiterDashboard() {
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Active
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        project.status === 'published' 
+                          ? 'bg-green-100 text-green-800' 
+                          : project.status === 'draft'
+                          ? 'bg-gray-100 text-gray-800'
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {project.status}
                       </span>
-                      <span className="text-xs text-gray-500">
-                        {project.views_count || 0} views
-                      </span>
+                      {project.views_count !== undefined && (
+                        <span className="text-xs text-gray-500">
+                          {project.views_count} views
+                        </span>
+                      )}
                     </div>
                   </Link>
                 ))}
@@ -233,7 +313,7 @@ export default function RecruiterDashboard() {
               <div className="text-center py-8">
                 <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                 <p className="text-gray-600 dark:text-gray-400 mb-3">
-                  No active projects
+                  {projectsError ? 'Unable to load projects' : 'No projects yet'}
                 </p>
                 <Link href="/dashboard/projects/create">
                   <Button size="sm">
@@ -268,9 +348,9 @@ export default function RecruiterDashboard() {
                   </div>
                 ))}
               </div>
-            ) : applications && applications.length > 0 ? (
+            ) : allApplications && allApplications.length > 0 ? (
               <div className="space-y-4">
-                {applications.map((app) => (
+                {allApplications.map((app: any) => (
                   <Link
                     key={app.id}
                     href={`/dashboard/applications/${app.id}`}
@@ -294,6 +374,16 @@ export default function RecruiterDashboard() {
                           New
                         </span>
                       )}
+                      {app.status === 'accepted' && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Accepted
+                        </span>
+                      )}
+                      {app.status === 'rejected' && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          Rejected
+                        </span>
+                      )}
                     </div>
                   </Link>
                 ))}
@@ -302,7 +392,7 @@ export default function RecruiterDashboard() {
               <div className="text-center py-8">
                 <FileText className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                 <p className="text-gray-600 dark:text-gray-400">
-                  No applications yet
+                  {appsError ? 'Unable to load applications' : 'No applications yet'}
                 </p>
               </div>
             )}
