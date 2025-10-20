@@ -17,7 +17,6 @@ import Link from 'next/link';
 import api from '@/lib/api/axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { DashboardStats, Application, Project } from '@/types';
 import { VerificationBanner } from '@/components/VerificationBanner';
 
@@ -185,20 +184,24 @@ export default function RecruiterDashboard() {
         
         {/* API Error Warnings */}
         {apiErrors.length > 0 && (
-          <Alert className="mb-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20">
-            <AlertCircle className="h-4 w-4 text-yellow-600" />
-            <AlertDescription className="text-sm text-yellow-800 dark:text-yellow-200">
-              <div className="font-semibold mb-2">API Configuration Issues Detected:</div>
-              <ul className="list-disc list-inside space-y-1">
-                {apiErrors.map((error, idx) => (
-                  <li key={idx}>{error}</li>
-                ))}
-              </ul>
-              <div className="mt-2 text-xs">
-                Current user_type: <span className="font-mono">{user?.user_type || 'unknown'}</span>
+          <div className="mb-4 border border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4">
+            <div className="flex gap-3">
+              <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                  API Configuration Issues Detected:
+                </div>
+                <ul className="list-disc list-inside space-y-1 text-sm text-yellow-800 dark:text-yellow-200">
+                  {apiErrors.map((error, idx) => (
+                    <li key={idx}>{error}</li>
+                  ))}
+                </ul>
+                <div className="mt-2 text-xs text-yellow-700 dark:text-yellow-300">
+                  Current user_type: <span className="font-mono">{user?.user_type || 'unknown'}</span>
+                </div>
               </div>
-            </AlertDescription>
-          </Alert>
+            </div>
+          </div>
         )}
         
         <div className="flex items-center justify-between">

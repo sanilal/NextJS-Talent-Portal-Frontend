@@ -152,7 +152,7 @@ export const useAuthStore = create<AuthStore>()(
 
       logout: async () => {
         console.log('🚪 AUTH STORE: logout() called');
-        console.trace('📍 Logout called from:'); // Shows where it was called from
+        console.trace('📍 Logout called from:');
         
         try {
           await authApi.logout();
@@ -291,7 +291,15 @@ export const useAuthStore = create<AuthStore>()(
       }),
       onRehydrateStorage: () => {
         console.log('🔄 AUTH STORE: Starting rehydration...');
-        return (state) => {
+        return (state, error) => {
+          if (error) {
+            console.error('❌ AUTH STORE: Rehydration error:', error);
+            if (state) {
+              state.setHasHydrated(true);
+            }
+            return;
+          }
+
           if (state) {
             console.log('💧 AUTH STORE: Rehydration complete');
             console.log('📦 Rehydrated state:', {
@@ -299,6 +307,25 @@ export const useAuthStore = create<AuthStore>()(
               hasToken: !!state.token,
               isAuthenticated: state.isAuthenticated,
             });
+
+            // 🔥 CRITICAL FIX: If we have user and token, ensure isAuthenticated is true
+            if (state.user && state.token) {
+              console.log('✅ Valid auth data found, setting isAuthenticated = true');
+              
+              // Also sync with localStorage for axios interceptor
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('token', state.token);
+                localStorage.setItem('user', JSON.stringify(state.user));
+              }
+              
+              // Update the state to ensure isAuthenticated is true
+              state.isAuthenticated = true;
+            } else {
+              console.log('⚠️ No valid auth data found during rehydration');
+              state.isAuthenticated = false;
+            }
+
+            // Mark as hydrated
             state.setHasHydrated(true);
           }
         };

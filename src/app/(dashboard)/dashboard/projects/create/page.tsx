@@ -235,10 +235,10 @@ export default function CreateProjectPage() {
                   {...register('budget_currency')}
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
+                  <option value="AED">AED</option>
                   <option value="USD">USD</option>
                   <option value="EUR">EUR</option>
                   <option value="GBP">GBP</option>
-                  <option value="AED">AED</option>
                 </select>
               </div>
             </div>
