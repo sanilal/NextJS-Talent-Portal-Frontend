@@ -1,130 +1,165 @@
-ls app
-Helpers/  Http/  Jobs/  Models/  Observers/  Providers/  Services/
-
-ls app/Helpers
-SimilarityHelper.php
-
- ls app/Http
-Controllers/  Middleware/
-
- ls app/Http/Controllers
-Api/  AuthenticationController.php  Controller.php
-
- ls app/Http/Controllers/Api
-ApplicationController.php  MediaController.php    NotificationController.php  PublicController.php     ReviewController.php  Talent/
-Auth/                      MessageController.php  ProjectController.php       RecruiterController.php  SearchController.php
-
- ls app/Http/Controllers/Api/Talent
-EducationController.php  ExperiencesController.php  PortfolioController.php  TalentProfileController.php  TalentSkillsController.php
-
-ls app/Http/Controllers/Api/Auth
-AuthController.php  EmailVerificationController.php  PasswordResetController.php  TwoFactorController.php
-
-
-ls app/Http/Middleware
-ApiAuthMiddleware.php       CheckAccountStatus.php  EnsureEmailIsVerified.php  RoleMiddleware.php             TwoFactorMiddleware.php
-ApiRateLimitMiddleware.php  EncryptCookies.php      HandleOptionsRequests.php  SecurityHeadersMiddleware.php  VerifyCsrfToken.php
-
- ls app/Jobs
-GeneratePortfolioEmbedding.php  GenerateProjectEmbeddings.php  GenerateSkillEmbedding.php  GenerateTalentProfileEmbeddings.php
-
-ls app/Models
-Application.php  EmailVerificationAttempt.php  Media.php         Portfolio.php         Review.php         TalentSkill.php
-Category.php     Experience.php                Message.php       Project.php           Skill.php          User.php
-Education.php    LoginAttempt.php              Notification.php  RecruiterProfile.php  TalentProfile.php
-
- ls app/Observers
-PortfolioObserver.php  ProjectObserver.php  SkillObserver.php  TalentProfileObserver.php
-
-ls app/Providers
-AppServiceProvider.php  TelescopeServiceProvider.php
-
-
-ls app/Services
-AuthenticationService.php  EmbeddingService.php  SearchService.php
-
-
-
-
-
-Admin@DESKTOP-TC6FUA0 MINGW64 /d/xampp/htdocs/projects/talents-you-need/frontend (main)
 $ ls
-COMPLETE_SETUP_GUIDE.md  IMPLEMENTATION_CHECKLIST.md  next-env.d.ts  package-lock.json    public/          src/
-DEPLOYMENT_GUIDE.md      IMPLEMENTATION_SUMMARY.md    node_modules/  postcss.config.mjs   QUICK_START.sh*  test-backend.sh*
-eslint.config.mjs        next.config.ts               package.json   PROJECT_COMPLETE.md  README.md        tsconfig.json   
+COMPLETE_SETUP_GUIDE.md  IMPLEMENTATION_CHECKLIST.md  next-env.d.ts  package-lock.json    projectstructure.txt  README.md         tsconfig.json
+DEPLOYMENT_GUIDE.md      IMPLEMENTATION_SUMMARY.md    node_modules/  postcss.config.mjs   public/               src/
+eslint.config.mjs        next.config.ts               package.json   PROJECT_COMPLETE.md  QUICK_START.sh*       test-backend.sh*
 
 
-ls src
+ls node_modules                                                                                                                                                 
+'@alloc'/                         define-data-property/                is-callable/                             proxy-from-env/
+'@emnapi'/                        define-properties/                   is-core-module/                          punycode/
+'@eslint'/                        delayed-stream/                      is-data-view/                            queue-microtask/
+'@eslint-community'/              detect-libc/                         is-date-object/                          react/
+'@floating-ui'/                   detect-node-es/                      isexe/                                   react-dom/
+'@headlessui'/                    doctrine/                            is-extglob/                              react-hook-form/
+'@heroicons'/                     dunder-proto/                        is-finalizationregistry/                 react-is/
+'@hookform'/                      electron-to-chromium/                is-generator-function/                   react-remove-scroll/
+'@humanfs'/                       emoji-regex/                         is-glob/                                 react-remove-scroll-bar/
+'@humanwhocodes'/                 enhanced-resolve/                    is-map/                                  react-style-singleton/
+'@img'/                           es-abstract/                         is-negative-zero/                        reflect.getprototypeof/
+'@isaacs'/                        escalade/                            is-number/                               regexp.prototype.flags/
+'@jridgewell'/                    escape-string-regexp/                is-number-object/                        resolve/
+'@napi-rs'/                       es-define-property/                  is-regex/                                resolve-from/
+'@next'/                          es-errors/                           is-set/                                  resolve-pkg-maps/
+'@nodelib'/                       es-iterator-helpers/                 is-shared-array-buffer/                  reusify/
+'@nolyfill'/                      eslint/                              is-string/                               run-parallel/
+'@radix-ui'/                      eslint-config-next/                  is-symbol/                               safe-array-concat/
+'@react-aria'/                    eslint-import-resolver-node/         is-typed-array/                          safe-push-apply/
+'@react-stately'/                 eslint-import-resolver-typescript/   is-weakmap/                              safe-regex-test/
+'@react-types'/                   eslint-module-utils/                 is-weakref/                              scheduler/
+'@rtsao'/                         eslint-plugin-import/                is-weakset/                              semver/
+'@rushstack'/                     eslint-plugin-jsx-a11y/              iterator.prototype/                      set-function-length/
+'@standard-schema'/               eslint-plugin-react/                 jiti/                                    set-function-name/
+'@swc'/                           eslint-plugin-react-hooks/           json5/                                   set-proto/
+'@tailwindcss'/                   eslint-scope/                        json-buffer/                             sharp/
+'@tanstack'/                      eslint-visitor-keys/                 json-schema-traverse/                    shebang-command/
+'@tybys'/                         es-object-atoms/                     json-stable-stringify-without-jsonify/   shebang-regex/
+'@types'/                         espree/                              js-tokens/                               side-channel/
+'@typescript-eslint'/             esquery/                             jsx-ast-utils/                           side-channel-list/
+'@unrs'/                          esrecurse/                           js-yaml/                                 side-channel-map/
+ acorn/                           es-set-tostringtag/                  keyv/                                    side-channel-weakmap/
+ acorn-jsx/                       es-shim-unscopables/                 language-subtag-registry/                sonner/
+ ajv/                             es-to-primitive/                     language-tags/                           source-map-js/
+ ansi-styles/                     estraverse/                          levn/                                    stable-hash/
+ argparse/                        esutils/                             lightningcss/                            stop-iteration-iterator/
+ aria-hidden/                     fast-deep-equal/                     lightningcss-win32-x64-msvc/             string.prototype.includes/
+ aria-query/                      fast-glob/                           locate-path/                             string.prototype.matchall/
+ array.prototype.findlast/        fast-json-stable-stringify/          lodash.merge/                            string.prototype.repeat/
+ array.prototype.findlastindex/   fast-levenshtein/                    loose-envify/                            string.prototype.trim/
+ array.prototype.flat/            fastq/                               lucide-react/                            string.prototype.trimend/
+ array.prototype.flatmap/         file-entry-cache/                    magic-string/                            string.prototype.trimstart/
+ array.prototype.tosorted/        fill-range/                          math-intrinsics/                         strip-bom/
+ arraybuffer.prototype.slice/     find-up/                             merge2/                                  strip-json-comments/
+ array-buffer-byte-length/        flat-cache/                          micromatch/                              styled-jsx/
+ array-includes/                  flatted/                             mime-db/                                 supports-color/
+ ast-types-flow/                  follow-redirects/                    mime-types/                              supports-preserve-symlinks-flag/
+ async-function/                  for-each/                            minimatch/                               tabbable/
+ asynckit/                        form-data/                           minimist/                                tailwindcss/
+ autoprefixer/                    fraction.js/                         minipass/                                tailwind-merge/
+ available-typed-arrays/          function.prototype.name/             minizlib/                                tapable/
+ axe-core/                        function-bind/                       ms/                                      tar/
+ axios/                           functions-have-names/                nanoid/                                  tinyglobby/
+ axobject-query/                  generator-function/                  napi-postinstall/                        to-regex-range/
+ balanced-match/                  get-intrinsic/                       natural-compare/                         ts-api-utils/
+ baseline-browser-mapping/        get-nonce/                           next/                                    tsconfig-paths/
+ brace-expansion/                 get-proto/                           next-themes/                             tslib/
+ braces/                          get-symbol-description/              node-releases/                           type-check/
+ browserslist/                    get-tsconfig/                        normalize-range/                         typed-array-buffer/
+ call-bind/                       globals/                             object.assign/                           typed-array-byte-length/
+ call-bind-apply-helpers/         globalthis/                          object.entries/                          typed-array-byte-offset/
+ call-bound/                      glob-parent/                         object.fromentries/                      typed-array-length/
+ callsites/                       gopd/                                object.groupby/                          typescript/
+ caniuse-lite/                    graceful-fs/                         object.values/                           unbox-primitive/
+ chalk/                           graphemer/                           object-assign/                           undici-types/
+ chownr/                          has-bigints/                         object-inspect/                          unrs-resolver/
+ class-variance-authority/        has-flag/                            object-keys/                             update-browserslist-db/
+ client-only/                     hasown/                              optionator/                              uri-js/
+ clsx/                            has-property-descriptors/            own-keys/                                use-callback-ref/
+ color-convert/                   has-proto/                           parent-module/                           use-sidecar/
+ color-name/                      has-symbols/                         path-exists/                             use-sync-external-store/
+ combined-stream/                 has-tostringtag/                     path-key/                                which/
+ concat-map/                      ignore/                              path-parse/                              which-boxed-primitive/
+ cross-spawn/                     import-fresh/                        picocolors/                              which-builtin-type/
+ csstype/                         imurmurhash/                         picomatch/                               which-collection/
+ damerau-levenshtein/             internal-slot/                       p-limit/                                 which-typed-array/
+ data-view-buffer/                isarray/                             p-locate/                                word-wrap/
+ data-view-byte-length/           is-array-buffer/                     possible-typed-array-names/              yallist/
+ data-view-byte-offset/           is-async-function/                   postcss/                                 yocto-queue/
+ date-fns/                        is-bigint/                           postcss-value-parser/                    zod/
+ debug/                           is-boolean-object/                   prelude-ls/                              zustand/
+ deep-is/                         is-bun-module/                       prop-types/
+
+
+  ls public
+file.svg  globe.svg  next.svg  vercel.svg  window.svg
+
+
+ ls src
 app/  components/  hooks/  lib/  store/  styles/  types/
 
-
- ls src/app
+ls src/app
 '(auth)'/  '(dashboard)'/   favicon.ico   globals.css   layout.tsx   page.tsx   projects/   talents/
 
-
-ls src/app/'(auth)'
+ ls src/app/'(auth)'
 layout.tsx  login/  register/
+
+ls src/app/'(auth)'/login
+page.tsx
+
+ ls src/app/'(auth)'/register
+page.tsx
 
 ls src/app/'(dashboard)'
 dashboard/  layout.tsx
 
- ls src/app/'(dashboard)'/dashboard
+$ ls src/app/'(dashboard)'/dashboard
 applications/  messages/  profile/  projects/  recruiter/  settings/  skills/  talent/  talents/
 
-ls src/app/'(dashboard)'/dashboard/profile
-edit/  experience/  page.tsx
+ls src/app/'(dashboard)'/dashboard/applications
+page.tsx
+
+ls src/app/'(dashboard)'/dashboard/messages
+page.tsx
+
+ ls src/app/'(dashboard)'/dashboard/profile
+edit/  experience/  page.tsx  page.tsx.backup
+
+$ ls src/app/'(dashboard)'/dashboard/profile/edit
+page.tsx
+
+ ls src/app/'(dashboard)'/dashboard/profile/experience
+page.tsx
 
  ls src/app/'(dashboard)'/dashboard/projects
 '[id]'/   create/   page.tsx
 
-$ ls src/app/'(dashboard)'/dashboard/projects/'[id]'
+ls src/app/'(dashboard)'/dashboard/projects/'[id]'
 apply/  page.tsx
-
-ls src/app/'(dashboard)'/dashboard/projects/'[id]'/apply
+$ ls src/app/'(dashboard)'/dashboard/projects/'[id]'/apply
 page.tsx
 
+ls src/app/'(dashboard)'/dashboard/projects/create
+page.tsx
+
+ls src/app/'(dashboard)'/dashboard/recruiter
+page.tsx
+
+ ls src/app/'(dashboard)'/dashboard/settings
+page.tsx
+
+ls src/app/'(dashboard)'/dashboard/skills
+page.tsx
+
+ls src/app/'(dashboard)'/dashboard/talent
+page.tsx
+
+ls src/app/'(dashboard)'/dashboard/talents
+page.tsx
+
+ls src/app/projects
+page.tsx
 
 ls src/app/talents
 '[id]'/   page.tsx
 
-ls src/components
-auth/  dashboard/  layout/  profile/  projects/  Providers.tsx  Providers.tsx.backup  talents/  ui/  VerificationBanner.tsx
-
-ls src/components/auth
-ProtectedRoute.tsx  PublicRoute.tsx
-
- ls src/components/dashboard
-DashboardComponents.tsx
-
-ls src/components/layout
-DashboardHeader.tsx  DashboardSidebar.tsx  NotificationsDropdown.tsx
-
-ls src/components/profile
-EducationSection.tsx  ExperienceSection.tsx  SkillsSection.tsx
-
- ls src/components/projects
-ProjectCard.tsx
-
- ls src/components/talents
-TalentCard.tsx
-
-ls src/components/ui
-button.tsx  card.tsx  input.tsx
-
- ls src/hooks
-useDashboard.ts
-
- ls src/lib
-api/  utils.ts
-
-ls src/lib/api
-applications.ts  auth.ts  axios.ts  messages.ts  notifications.ts  projects.ts  search.ts  talents.ts  talents.ts.backup
-
-ls src/store
-authStore.ts
-
-ls src/styles
-globals.css  tailwind.css
-
-ls src/types
-index.ts  index.ts.backup
+ls src/app/talents/'[id]'
+page.tsx  page.tsx.backup

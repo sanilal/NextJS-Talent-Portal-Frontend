@@ -20,8 +20,17 @@ export const applicationsAPI = {
    * Get talent's applications
    */
   getTalentApplications: async (params?: any) => {
-    const response = await api.get<PaginatedResponse<Application>>('/talent/applications', { params });
-    return response.data;
+    const response = await api.get<{ applications: Application[] }>('/talent/applications', { params });
+    // Transform API response to match expected PaginatedResponse format
+    return {
+      data: response.data.applications || [],
+      meta: {
+        current_page: 1,
+        last_page: 1,
+        per_page: response.data.applications?.length || 0,
+        total: response.data.applications?.length || 0,
+      }
+    };
   },
 
   /**
@@ -60,7 +69,16 @@ export const applicationsAPI = {
    * Get recruiter's received applications
    */
   getRecruiterApplications: async (params?: any) => {
-    const response = await api.get<PaginatedResponse<Application>>('/recruiter/applications', { params });
-    return response.data;
+    const response = await api.get<{ applications: Application[] }>('/recruiter/applications', { params });
+    // Transform API response to match expected PaginatedResponse format
+    return {
+      data: response.data.applications || [],
+      meta: {
+        current_page: 1,
+        last_page: 1,
+        per_page: response.data.applications?.length || 0,
+        total: response.data.applications?.length || 0,
+      }
+    };
   },
 };
