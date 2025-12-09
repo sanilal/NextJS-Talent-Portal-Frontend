@@ -1,6 +1,15 @@
 import api from './axios';
 import type { Message, Conversation, ApiResponse, PaginatedResponse } from '@/types';
 
+// Response wrapper types for messages API
+interface ConversationsResponse {
+  conversations: Conversation[];
+}
+
+interface ConversationMessagesResponse {
+  data: Message[];  // Backend wraps in 'data' key
+}
+
 export const messagesAPI = {
   /**
    * Get all messages
@@ -12,17 +21,19 @@ export const messagesAPI = {
 
   /**
    * Get conversations list
+   * Returns: { conversations: Conversation[] }
    */
-  getConversations: async () => {
-    const response = await api.get<Conversation[]>('/messages/conversations');
+  getConversations: async (): Promise<ConversationsResponse> => {
+    const response = await api.get<ConversationsResponse>('/messages/conversations');
     return response.data;
   },
 
   /**
    * Get conversation with specific user
+   * Returns: { data: Message[] }
    */
-  getConversation: async (userId: number, params?: any) => {
-    const response = await api.get<PaginatedResponse<Message>>(`/messages/conversations/${userId}`, { params });
+  getConversation: async (userId: number, params?: any): Promise<ConversationMessagesResponse> => {
+    const response = await api.get<ConversationMessagesResponse>(`/messages/conversations/${userId}`, { params });
     return response.data;
   },
 
@@ -33,7 +44,7 @@ export const messagesAPI = {
     receiver_id: number;
     message: string;
   }) => {
-    const response = await api.post<Message>('/messages', data);
+    const response = await api.post<{ message: string; data: Message }>('/messages', data);
     return response.data;
   },
 
@@ -41,7 +52,7 @@ export const messagesAPI = {
    * Get single message
    */
   getMessage: async (id: number) => {
-    const response = await api.get<Message>(`/messages/${id}`);
+    const response = await api.get<{ data: Message }>(`/messages/${id}`);
     return response.data;
   },
 
