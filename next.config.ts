@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  turbopack: {
+    // completely turn Turbopack off
+    enabled: false,
+  },
   images: {
     remotePatterns: [
       {
@@ -19,9 +23,7 @@ const nextConfig = {
   // Enable experimental features if needed
   experimental: {
     // serverActions: true,
-    turbo: {
-      enabled: false,
-    },
+   
   },
 
   // Environment variables exposed to the browser
