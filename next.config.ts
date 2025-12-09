@@ -44,7 +44,7 @@ const nextConfig = {
   },
 
   // Custom webpack configuration if needed
-  webpack: (config) => {
+   webpack: (config: import("webpack").Configuration) => {
     // Add any custom webpack config here
     return config;
   },
