@@ -210,7 +210,7 @@ export default function ApplicationsPage() {
                             <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                               {isRecruiter 
                                 ? `Applied to: ${application.project?.title}`
-                                : application.talent?.title || 'Talent'
+                                : application.talent?.professional_title || 'Talent'
                               }
                             </p>
 
