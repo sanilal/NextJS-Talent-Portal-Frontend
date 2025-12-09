@@ -19,6 +19,9 @@ const nextConfig = {
   // Enable experimental features if needed
   experimental: {
     // serverActions: true,
+    turbo: {
+      enabled: false,
+    },
   },
 
   // Environment variables exposed to the browser
