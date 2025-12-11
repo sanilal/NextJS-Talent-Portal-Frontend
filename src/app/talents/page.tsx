@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -49,7 +49,7 @@ export default function TalentsPage() {
   const { data: talentsResponse, isLoading } = useQuery({
     queryKey: ['public-talents', filters],
     queryFn: () => publicTalentsAPI.list(filters),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   // Fetch skills for filter dropdown
@@ -455,183 +455,106 @@ export default function TalentsPage() {
 }
 
 // Talent Card Component
-// Talent Card Component
-  function TalentCard({ 
-    talent, 
-    viewMode 
-  }: { 
-    talent: any; 
-    viewMode: 'grid' | 'list' 
-  }) {
-    //  CORRECT: Access data directly from talent object
-    const primarySkill = talent.skills?.find((s: any) => s.is_primary);
-    const skillsList = talent.skills || [];
-    
-    //  CORRECT: Map availability_status (not is_available)
-    const availabilityConfig: Record<string, { color: string; label: string }> = {
-      available: { color: 'bg-green-100 text-green-800', label: 'Available' },
-      busy: { color: 'bg-yellow-100 text-yellow-800', label: 'Busy' },
-      not_available: { color: 'bg-red-100 text-red-800', label: 'Not Available' },
-    };
-    
-    //  CORRECT: Use availability_status from API (not is_available)
-    const availability = availabilityConfig[talent.availability_status || 'not_available'];
+function TalentCard({ 
+  talent, 
+  viewMode 
+}: { 
+  talent: any; 
+  viewMode: 'grid' | 'list' 
+}) {
+  const primarySkill = talent.skills?.find((s: any) => s.is_primary);
+  const skillsList = talent.skills || [];
+  
+  const availabilityConfig: Record<string, { color: string; label: string }> = {
+    available: { color: 'bg-green-100 text-green-800', label: 'Available' },
+    busy: { color: 'bg-yellow-100 text-yellow-800', label: 'Busy' },
+    not_available: { color: 'bg-red-100 text-red-800', label: 'Not Available' },
+  };
+  
+  const availability = availabilityConfig[talent.availability_status || 'not_available'];
 
-    //  CORRECT: Build avatar URL properly
-    const avatarUrl = talent.avatar 
-      ? `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '')}/storage/${talent.avatar}`
-      : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-          `${talent.first_name} ${talent.last_name}`
-        )}&size=128&background=4F46E5&color=fff&bold=true`;
+  const avatarUrl = talent.avatar 
+    ? `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '')}/storage/${talent.avatar}`
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        `${talent.first_name} ${talent.last_name}`
+      )}&size=128&background=4F46E5&color=fff&bold=true`;
 
-    if (viewMode === 'list') {
-      return (
-        <Link href={`/talents/${talent.id}`}>
-          <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow flex gap-6">
-            <img
-              src={avatarUrl}
-              alt={`${talent.first_name} ${talent.last_name}`}
-              className="w-24 h-24 rounded-full object-cover flex-shrink-0"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                  `${talent.first_name} ${talent.last_name}`
-                )}&size=128&background=4F46E5&color=fff&bold=true`;
-              }}
-            />
-            <div className="flex-1">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    {talent.first_name} {talent.last_name}
-                  </h3>
-                  <p className="text-gray-600">
-                    {talent.professional_title || primarySkill?.skill?.name || 'Professional'}
-                  </p>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-sm ${availability.color}`}>
-                  {availability.label}
-                </span>
-              </div>
-              
-              {talent.summary && (
-                <p className="mt-2 text-gray-600 line-clamp-2">{talent.summary}</p>
-              )}
-              
-              <div className="mt-4 flex flex-wrap gap-2">
-                {skillsList.filter((ts: any) => ts.show_on_profile).slice(0, 5).map((ts: any) => (
-                  <span
-                    key={ts.id}
-                    className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm"
-                  >
-                    {ts.skill?.icon} {ts.skill?.name}
-                  </span>
-                ))}
-                {skillsList.filter((ts: any) => ts.show_on_profile).length > 5 && (
-                  <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm">
-                    +{skillsList.filter((ts: any) => ts.show_on_profile).length - 5} more
-                  </span>
-                )}
-              </div>
-              
-              <div className="mt-4 flex items-center gap-6 text-sm text-gray-600">
-                {talent.experience_level && (
-                  <span className="flex items-center gap-1 capitalize">
-                    <Briefcase className="w-4 h-4" />
-                    {talent.experience_level.replace('_', ' ')}
-                  </span>
-                )}
-                {talent.hourly_rate_min && (
-                  <span className="flex items-center gap-1 font-semibold text-gray-900">
-                    <DollarSign className="w-4 h-4" />
-                    ${talent.hourly_rate_min}
-                    {talent.hourly_rate_max && talent.hourly_rate_max !== talent.hourly_rate_min && 
-                      `-$${talent.hourly_rate_max}`
-                    }/hr
-                  </span>
-                )}
-                {talent.average_rating && (
-                  <span className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    {Number(talent.average_rating).toFixed(1)} ({talent.total_ratings || 0})
-                  </span>
-                )}
-                {talent.location && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    {talent.location}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </Link>
-      );
-    }
-
-    // Grid view
+  if (viewMode === 'list') {
     return (
       <Link href={`/talents/${talent.id}`}>
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow group">
-          <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600">
-            <span className={`absolute top-4 right-4 px-3 py-1 rounded-full text-sm ${availability.color}`}>
-              {availability.label}
-            </span>
-          </div>
-          
-          <div className="p-6 text-center">
-            <img
-              src={avatarUrl}
-              alt={`${talent.first_name} ${talent.last_name}`}
-              className="w-24 h-24 rounded-full border-4 border-white mx-auto -mt-16 mb-4 object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                  `${talent.first_name} ${talent.last_name}`
-                )}&size=128&background=4F46E5&color=fff&bold=true`;
-              }}
-            />
-            
-            <h3 className="text-xl font-semibold text-gray-900">
-              {talent.first_name} {talent.last_name}
-            </h3>
-            <p className="text-gray-600 mt-1">
-              {talent.professional_title || primarySkill?.skill?.name || 'Professional'}
-            </p>
+        <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow flex gap-6">
+          <img
+            src={avatarUrl}
+            alt={`${talent.first_name} ${talent.last_name}`}
+            className="w-24 h-24 rounded-full object-cover flex-shrink-0"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                `${talent.first_name} ${talent.last_name}`
+              )}&size=128&background=4F46E5&color=fff&bold=true`;
+            }}
+          />
+          <div className="flex-1">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">
+                  {talent.first_name} {talent.last_name}
+                </h3>
+                <p className="text-gray-600">
+                  {talent.professional_title || primarySkill?.skill?.name || 'Professional'}
+                </p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-sm ${availability.color}`}>
+                {availability.label}
+              </span>
+            </div>
             
             {talent.summary && (
-              <p className="mt-3 text-gray-600 text-sm line-clamp-2">{talent.summary}</p>
+              <p className="mt-2 text-gray-600 line-clamp-2">{talent.summary}</p>
             )}
             
-            <div className="mt-4 flex flex-wrap gap-2 justify-center">
-              {skillsList.filter((ts: any) => ts.show_on_profile).slice(0, 3).map((ts: any) => (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {skillsList.filter((ts: any) => ts.show_on_profile).slice(0, 5).map((ts: any) => (
                 <span
                   key={ts.id}
-                  className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs"
+                  className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm"
                 >
                   {ts.skill?.icon} {ts.skill?.name}
                 </span>
               ))}
-              {skillsList.filter((ts: any) => ts.show_on_profile).length > 3 && (
-                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
-                  +{skillsList.filter((ts: any) => ts.show_on_profile).length - 3}
+              {skillsList.filter((ts: any) => ts.show_on_profile).length > 5 && (
+                <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm">
+                  +{skillsList.filter((ts: any) => ts.show_on_profile).length - 5} more
                 </span>
               )}
             </div>
             
-            <div className="mt-4 flex items-center justify-center gap-4 text-sm text-gray-600">
+            <div className="mt-4 flex items-center gap-6 text-sm text-gray-600">
               {talent.experience_level && (
-                <span className="capitalize">{talent.experience_level.replace('_', ' ')}</span>
+                <span className="flex items-center gap-1 capitalize">
+                  <Briefcase className="w-4 h-4" />
+                  {talent.experience_level.replace('_', ' ')}
+                </span>
               )}
               {talent.hourly_rate_min && (
-                <span className="font-semibold text-gray-900">
-                  ${talent.hourly_rate_min}/hr
+                <span className="flex items-center gap-1 font-semibold text-gray-900">
+                  <DollarSign className="w-4 h-4" />
+                  ${talent.hourly_rate_min}
+                  {talent.hourly_rate_max && talent.hourly_rate_max !== talent.hourly_rate_min && 
+                    `-$${talent.hourly_rate_max}`
+                  }/hr
                 </span>
               )}
               {talent.average_rating && (
                 <span className="flex items-center gap-1">
                   <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  {Number(talent.average_rating).toFixed(1)}
+                  {Number(talent.average_rating).toFixed(1)} ({talent.total_ratings || 0})
+                </span>
+              )}
+              {talent.location && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-4 h-4" />
+                  {talent.location}
                 </span>
               )}
             </div>
@@ -640,3 +563,75 @@ export default function TalentsPage() {
       </Link>
     );
   }
+
+  // Grid view
+  return (
+    <Link href={`/talents/${talent.id}`}>
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow group">
+        <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600">
+          <span className={`absolute top-4 right-4 px-3 py-1 rounded-full text-sm ${availability.color}`}>
+            {availability.label}
+          </span>
+        </div>
+        
+        <div className="p-6 text-center">
+          <img
+            src={avatarUrl}
+            alt={`${talent.first_name} ${talent.last_name}`}
+            className="w-24 h-24 rounded-full border-4 border-white mx-auto -mt-16 mb-4 object-cover"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                `${talent.first_name} ${talent.last_name}`
+              )}&size=128&background=4F46E5&color=fff&bold=true`;
+            }}
+          />
+          
+          <h3 className="text-xl font-semibold text-gray-900">
+            {talent.first_name} {talent.last_name}
+          </h3>
+          <p className="text-gray-600 mt-1">
+            {talent.professional_title || primarySkill?.skill?.name || 'Professional'}
+          </p>
+          
+          {talent.summary && (
+            <p className="mt-3 text-gray-600 text-sm line-clamp-2">{talent.summary}</p>
+          )}
+          
+          <div className="mt-4 flex flex-wrap gap-2 justify-center">
+            {skillsList.filter((ts: any) => ts.show_on_profile).slice(0, 3).map((ts: any) => (
+              <span
+                key={ts.id}
+                className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs"
+              >
+                {ts.skill?.icon} {ts.skill?.name}
+              </span>
+            ))}
+            {skillsList.filter((ts: any) => ts.show_on_profile).length > 3 && (
+              <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
+                +{skillsList.filter((ts: any) => ts.show_on_profile).length - 3}
+              </span>
+            )}
+          </div>
+          
+          <div className="mt-4 flex items-center justify-center gap-4 text-sm text-gray-600">
+            {talent.experience_level && (
+              <span className="capitalize">{talent.experience_level.replace('_', ' ')}</span>
+            )}
+            {talent.hourly_rate_min && (
+              <span className="font-semibold text-gray-900">
+                ${talent.hourly_rate_min}/hr
+              </span>
+            )}
+            {talent.average_rating && (
+              <span className="flex items-center gap-1">
+                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                {Number(talent.average_rating).toFixed(1)}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
