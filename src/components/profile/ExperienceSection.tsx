@@ -13,15 +13,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDate } from '@/lib/utils';
 import type { Experience } from '@/types';
 
+// ✅ FIXED: Removed .default(false) to avoid type inference issues
 const experienceSchema = z.object({
   title: z.string().min(2, 'Title is required'),
   company: z.string().min(2, 'Company is required'),
   location: z.string().optional(),
-  is_current: z.boolean().default(false),
+  is_current: z.boolean().optional(), // ✅ Changed from .default(false) to .optional()
   start_date: z.string().min(1, 'Start date is required'),
   end_date: z.string().optional(),
   description: z.string().optional(),
 }).refine((data) => {
+  // If not current position, end_date is required
   if (!data.is_current && !data.end_date) {
     return false;
   }
@@ -50,13 +52,26 @@ export function ExperienceSection({ experiences = [] }: ExperienceSectionProps) 
     formState: { errors },
   } = useForm<ExperienceFormValues>({
     resolver: zodResolver(experienceSchema),
+    // ✅ FIXED: Set default values here instead of in schema
+    defaultValues: {
+      is_current: false,
+      location: '',
+      description: '',
+    },
   });
 
   const isCurrent = watch('is_current');
 
   // Add experience mutation
   const addMutation = useMutation({
-    mutationFn: (data: ExperienceFormValues) => talentsAPI.addExperience(data),
+    mutationFn: (data: ExperienceFormValues) => {
+      // ✅ Ensure is_current defaults to false if undefined
+      const payload = {
+        ...data,
+        is_current: data.is_current ?? false,
+      };
+      return talentsAPI.addExperience(payload);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['talent-profile'] });
       toast.success('Experience added successfully');
@@ -70,8 +85,14 @@ export function ExperienceSection({ experiences = [] }: ExperienceSectionProps) 
 
   // Update experience mutation
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: ExperienceFormValues }) =>
-      talentsAPI.updateExperience(id, data),
+    mutationFn: ({ id, data }: { id: number; data: ExperienceFormValues }) => {
+      // ✅ Ensure is_current defaults to false if undefined
+      const payload = {
+        ...data,
+        is_current: data.is_current ?? false,
+      };
+      return talentsAPI.updateExperience(id, payload);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['talent-profile'] });
       toast.success('Experience updated successfully');
@@ -120,7 +141,11 @@ export function ExperienceSection({ experiences = [] }: ExperienceSectionProps) 
   const cancelEdit = () => {
     setIsAdding(false);
     setEditingId(null);
-    reset();
+    reset({
+      is_current: false,
+      location: '',
+      description: '',
+    });
   };
 
   return (
@@ -257,7 +282,7 @@ export function ExperienceSection({ experiences = [] }: ExperienceSectionProps) 
               <Button
                 type="submit"
                 size="sm"
-                isLoading={addMutation.isPending || updateMutation.isPending}
+                disabled={addMutation.isPending || updateMutation.isPending}
               >
                 {editingId ? 'Update' : 'Add'} Experience
               </Button>
@@ -308,6 +333,7 @@ export function ExperienceSection({ experiences = [] }: ExperienceSectionProps) 
                       <button
                         onClick={() => startEdit(exp)}
                         className="p-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                        aria-label="Edit experience"
                       >
                         <Edit className="h-4 w-4" />
                       </button>
@@ -318,6 +344,7 @@ export function ExperienceSection({ experiences = [] }: ExperienceSectionProps) 
                           }
                         }}
                         className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded"
+                        aria-label="Delete experience"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
