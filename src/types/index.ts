@@ -28,6 +28,7 @@ export interface LoginCredentials {
   password: string;
 }
 
+// ✅ FIXED: Updated gender to match auth.ts API expectations
 export interface RegisterData {
   first_name: string;
   last_name: string;
@@ -37,7 +38,7 @@ export interface RegisterData {
   user_type: 'talent' | 'recruiter';
   phone?: string;
   date_of_birth?: string;
-  gender?: string;
+  gender?: 'male' | 'female' | 'other' | '';  // ✅ Changed from string to union type
 }
 
 // Skill Types (UPDATED to match Laravel backend)
