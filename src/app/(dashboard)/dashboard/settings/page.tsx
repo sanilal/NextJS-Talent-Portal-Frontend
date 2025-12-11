@@ -8,7 +8,7 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Shield, Bell, User, Lock, Save } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { authApi } from '@/lib/api/auth';
+import api from '@/lib/api/axios';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -53,30 +53,39 @@ export default function SettingsPage() {
     resolver: zodResolver(passwordSchema),
   });
 
-  // Update account mutation
+  // Update account mutation - Uses /auth/update-profile endpoint
   const updateAccountMutation = useMutation({
-    mutationFn: (data: AccountFormValues) => authApi.updateProfile(data),
+    mutationFn: async (data: AccountFormValues) => {
+      const response = await api.put('/auth/update-profile', data);
+      return response.data;
+    },
     onSuccess: (data) => {
-      updateUser(data);
+      // Handle different response structures from Laravel
+      const userData = data.user || data.data?.user || data.data || data;
+      updateUser(userData);
       toast.success('Account updated successfully');
     },
-    onError: () => {
-      toast.error('Failed to update account');
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || 'Failed to update account';
+      toast.error(errorMessage);
     },
   });
 
-  // Change password mutation
+  // Change password mutation - Uses /auth/change-password endpoint
   const changePasswordMutation = useMutation({
-    mutationFn: (data: PasswordFormValues) => authApi.changePassword(data),
+    mutationFn: async (data: PasswordFormValues) => {
+      const response = await api.post('/auth/change-password', data);
+      return response.data;
+    },
     onSuccess: () => {
       toast.success('Password changed successfully');
       passwordForm.reset();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to change password');
+      const errorMessage = error.response?.data?.message || 'Failed to change password';
+      toast.error(errorMessage);
     },
   });
-
 
   const tabs = [
     { id: 'account', label: 'Account', icon: User },
