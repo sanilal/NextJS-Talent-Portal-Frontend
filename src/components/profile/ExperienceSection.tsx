@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Plus, Trash2, Edit, X, Briefcase } from 'lucide-react';
+import { Plus, Trash2, Edit, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import { talentsAPI } from '@/lib/api/talents';
 import { Button } from '@/components/ui/button';
@@ -13,12 +13,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDate } from '@/lib/utils';
 import type { Experience } from '@/types';
 
-// ✅ FIXED: Removed .default(false) to avoid type inference issues
+// ✅ CORRECT FIX: is_current must be REQUIRED boolean, not optional
 const experienceSchema = z.object({
   title: z.string().min(2, 'Title is required'),
   company: z.string().min(2, 'Company is required'),
   location: z.string().optional(),
-  is_current: z.boolean().optional(), // ✅ Changed from .default(false) to .optional()
+  is_current: z.boolean(), // ✅ Required boolean - NO .default(), NO .optional()
   start_date: z.string().min(1, 'Start date is required'),
   end_date: z.string().optional(),
   description: z.string().optional(),
@@ -52,7 +52,7 @@ export function ExperienceSection({ experiences = [] }: ExperienceSectionProps) 
     formState: { errors },
   } = useForm<ExperienceFormValues>({
     resolver: zodResolver(experienceSchema),
-    // ✅ FIXED: Set default values here instead of in schema
+    // ✅ Set default value for is_current in defaultValues
     defaultValues: {
       is_current: false,
       location: '',
@@ -64,18 +64,15 @@ export function ExperienceSection({ experiences = [] }: ExperienceSectionProps) 
 
   // Add experience mutation
   const addMutation = useMutation({
-    mutationFn: (data: ExperienceFormValues) => {
-      // ✅ Ensure is_current defaults to false if undefined
-      const payload = {
-        ...data,
-        is_current: data.is_current ?? false,
-      };
-      return talentsAPI.addExperience(payload);
-    },
+    mutationFn: (data: ExperienceFormValues) => talentsAPI.addExperience(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['talent-profile'] });
       toast.success('Experience added successfully');
-      reset();
+      reset({
+        is_current: false,
+        location: '',
+        description: '',
+      });
       setIsAdding(false);
     },
     onError: () => {
@@ -85,18 +82,16 @@ export function ExperienceSection({ experiences = [] }: ExperienceSectionProps) 
 
   // Update experience mutation
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: ExperienceFormValues }) => {
-      // ✅ Ensure is_current defaults to false if undefined
-      const payload = {
-        ...data,
-        is_current: data.is_current ?? false,
-      };
-      return talentsAPI.updateExperience(id, payload);
-    },
+    mutationFn: ({ id, data }: { id: number; data: ExperienceFormValues }) =>
+      talentsAPI.updateExperience(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['talent-profile'] });
       toast.success('Experience updated successfully');
-      reset();
+      reset({
+        is_current: false,
+        location: '',
+        description: '',
+      });
       setEditingId(null);
     },
     onError: () => {
