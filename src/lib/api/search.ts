@@ -1,5 +1,6 @@
 import api from './axios';
-import type { TalentProfile, Project, SearchParams, MatchResult } from '@/types';
+// ✅ FIXED: Removed unused imports (TalentProfile, Project, MatchResult)
+import type { SearchParams } from '@/types';
 
 export const searchAPI = {
   /**
