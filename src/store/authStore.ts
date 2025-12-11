@@ -25,9 +25,32 @@ interface AuthActions {
 
 type AuthStore = AuthState & AuthActions;
 
+// ✅ Helper function to normalize API user response to match User type
+const normalizeUser = (apiUser: any): User => {
+  return {
+    // ✅ Convert string id to number if needed
+    id: typeof apiUser.id === 'string' ? parseInt(apiUser.id) : apiUser.id,
+    first_name: apiUser.first_name,
+    last_name: apiUser.last_name,
+    email: apiUser.email,
+    user_type: apiUser.user_type,
+    account_status: apiUser.account_status || 'active',
+    email_verified_at: apiUser.email_verified_at,
+    phone: apiUser.phone,
+    date_of_birth: apiUser.date_of_birth,
+    gender: apiUser.gender,
+    avatar_url: apiUser.avatar_url,
+    // ✅ Provide defaults for required fields that might be missing
+    is_verified: apiUser.is_verified ?? apiUser.email_verified_at !== null,
+    is_active: apiUser.is_active ?? true,
+    created_at: apiUser.created_at || new Date().toISOString(),
+    updated_at: apiUser.updated_at || new Date().toISOString(),
+  };
+};
+
 export const useAuthStore = create<AuthStore>()(
   persist(
-    (set, get) => ({
+    (set, _get) => ({  // ✅ Renamed 'get' to '_get' to fix ESLint warning
       // Initial State
       user: null,
       token: null,
@@ -49,11 +72,14 @@ export const useAuthStore = create<AuthStore>()(
         
         try {
           const response = await authApi.login(credentials.email, credentials.password);
-          const { user, token } = response;
+          const { user: apiUser, token } = response;
 
           console.log('✅ AUTH STORE: Login API success');
-          console.log('👤 User:', user?.email);
+          console.log('👤 User:', apiUser?.email);
           console.log('🔑 Token:', token ? 'EXISTS' : 'MISSING');
+
+          // ✅ Normalize the user data to match User type
+          const user = normalizeUser(apiUser);
 
           // Save token to localStorage explicitly
           if (typeof window !== 'undefined') {
@@ -100,9 +126,12 @@ export const useAuthStore = create<AuthStore>()(
 
         try {
           const response = await authApi.register(userData);
-          const { user, token } = response;
+          const { user: apiUser, token } = response;
 
           console.log('✅ AUTH STORE: Register API success');
+
+          // ✅ Normalize the user data to match User type
+          const user = normalizeUser(apiUser);
 
           // Save token to localStorage explicitly
           if (typeof window !== 'undefined') {
@@ -226,9 +255,13 @@ export const useAuthStore = create<AuthStore>()(
         // Then verify with the server in the background
         console.log('🌐 Verifying auth with backend...');
         try {
-          const user = await authApi.getCurrentUser();
+          const apiUser = await authApi.getCurrentUser();
           
           console.log('✅ Backend auth verification succeeded');
+          
+          // ✅ Normalize the user data
+          const user = normalizeUser(apiUser);
+          
           set({
             user,
             token,
