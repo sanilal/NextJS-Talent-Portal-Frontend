@@ -10,6 +10,29 @@ interface TalentCardProps {
 }
 
 export function TalentCard({ talent, showSimilarityScore }: TalentCardProps) {
+  // ✅ Helper to get location string from preferred_locations array
+  const getLocation = () => {
+    if (talent.preferred_locations && talent.preferred_locations.length > 0) {
+      return talent.preferred_locations[0];
+    }
+    return 'Location not specified';
+  };
+
+  // ✅ Helper to check if remote work is available from availability_types
+  const isRemoteAvailable = () => {
+    if (talent.availability_types && talent.availability_types.length > 0) {
+      return talent.availability_types.some(type => 
+        type.toLowerCase().includes('remote')
+      );
+    }
+    return false;
+  };
+
+  // ✅ Get availability status from is_available boolean
+  const getAvailabilityStatus = () => {
+    return talent.is_available ? 'available' : 'not_available';
+  };
+
   return (
     <Link href={`/dashboard/talents/${talent.id}`}>
       <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
@@ -26,19 +49,21 @@ export function TalentCard({ talent, showSimilarityScore }: TalentCardProps) {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
                 {talent.user?.first_name} {talent.user?.last_name}
               </h3>
-              {talent.title && (
+              {/* ✅ FIXED: Use professional_title instead of title */}
+              {talent.professional_title && (
                 <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                  {talent.title}
+                  {talent.professional_title}
                 </p>
               )}
-              {talent.rating_average && talent.rating_count && (
+              {/* ✅ FIXED: Use average_rating and total_ratings instead of rating_average and rating_count */}
+              {talent.average_rating && talent.total_ratings > 0 && (
                 <div className="flex items-center gap-1 mt-1">
                   <Star className="h-4 w-4 text-yellow-500 fill-current" />
                   <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {talent.rating_average.toFixed(1)}
+                    {talent.average_rating.toFixed(1)}
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    ({talent.rating_count})
+                    ({talent.total_ratings})
                   </span>
                 </div>
               )}
@@ -46,9 +71,10 @@ export function TalentCard({ talent, showSimilarityScore }: TalentCardProps) {
           </div>
 
           {/* Bio */}
-          {talent.bio && (
+          {/* ✅ FIXED: Use summary instead of bio */}
+          {talent.summary && (
             <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 mb-4">
-              {truncate(talent.bio, 120)}
+              {truncate(talent.summary, 120)}
             </p>
           )}
 
@@ -74,20 +100,26 @@ export function TalentCard({ talent, showSimilarityScore }: TalentCardProps) {
           {/* Meta Information */}
           <div className="space-y-2">
             {/* Hourly Rate */}
-            {talent.hourly_rate && (
+            {/* ✅ FIXED: Use hourly_rate_min and currency instead of hourly_rate and hourly_rate_currency */}
+            {talent.hourly_rate_min && (
               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                 <DollarSign className="h-4 w-4" />
                 <span>
-                  {formatCurrency(talent.hourly_rate, talent.hourly_rate_currency)}/hr
+                  {formatCurrency(talent.hourly_rate_min, talent.currency)}/hr
+                  {/* Show range if max is different */}
+                  {talent.hourly_rate_max && talent.hourly_rate_max !== talent.hourly_rate_min && (
+                    <> - {formatCurrency(talent.hourly_rate_max, talent.currency)}/hr</>
+                  )}
                 </span>
               </div>
             )}
 
             {/* Location */}
+            {/* ✅ FIXED: Use helper functions for location and remote availability */}
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
               <MapPin className="h-4 w-4" />
               <span>
-                {talent.is_remote_available ? 'Remote Available' : talent.location || 'On-site'}
+                {isRemoteAvailable() ? 'Remote Available' : getLocation()}
               </span>
             </div>
 
@@ -132,20 +164,15 @@ export function TalentCard({ talent, showSimilarityScore }: TalentCardProps) {
           )}
 
           {/* Availability Badge */}
-          {talent.availability && (
-            <div className="mt-4">
-              <span className={`
-                inline-flex px-2 py-1 text-xs font-medium rounded-full
-                ${talent.availability === 'available' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : ''}
-                ${talent.availability === 'busy' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400' : ''}
-                ${talent.availability === 'not_available' ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' : ''}
-              `}>
-                {talent.availability === 'available' && 'Available Now'}
-                {talent.availability === 'busy' && 'Currently Busy'}
-                {talent.availability === 'not_available' && 'Not Available'}
-              </span>
-            </div>
-          )}
+          {/* ✅ FIXED: Use is_available boolean instead of availability string */}
+          <div className="mt-4">
+            <span className={`
+              inline-flex px-2 py-1 text-xs font-medium rounded-full
+              ${talent.is_available ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'}
+            `}>
+              {talent.is_available ? 'Available Now' : 'Not Available'}
+            </span>
+          </div>
         </CardContent>
       </Card>
     </Link>
