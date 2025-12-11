@@ -451,4 +451,5 @@ export interface DashboardStats {
   total_messages?: number;
   unread_messages?: number;
   profile_completeness?: number;
+  total_views?: number;
 }
