@@ -282,7 +282,7 @@ export default function TalentSearchPage() {
               <TalentCard 
                 key={talent.id} 
                 talent={talent}
-                showSimilarityScore={useAI && debouncedQuery}
+                showSimilarityScore={useAI && !!debouncedQuery}
               />
             ))}
           </div>
