@@ -6,7 +6,8 @@ import { useAuthStore } from '@/store/authStore';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedUserTypes?: ('talent' | 'recruiter')[];
+  // ✅ FIXED: Added 'admin' to match User type definition
+  allowedUserTypes?: ('talent' | 'recruiter' | 'admin')[];
 }
 
 export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRouteProps) {
@@ -43,7 +44,7 @@ export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRoutePro
     // ✅ Mark as ready once we have auth state
     setIsReady(true);
 
-  }, [_hasHydrated, isAuthenticated, token, user, allowedUserTypes]);
+  }, [_hasHydrated, isAuthenticated, token, user, allowedUserTypes, isReady]);
 
   // Separate effect for redirects (only runs when ready)
   useEffect(() => {
@@ -51,7 +52,7 @@ export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRoutePro
 
     if (!isAuthenticated || !user) {
       console.log('❌ NOT AUTHENTICATED - Redirecting to /login');
-      console.log('📍 Current path:', window.location.pathname);
+      console.log('🔍 Current path:', window.location.pathname);
       console.log('💾 Token in localStorage:', localStorage.getItem('token') ? 'EXISTS' : 'MISSING');
       router.push('/login');
       return;
@@ -59,10 +60,14 @@ export function ProtectedRoute({ children, allowedUserTypes }: ProtectedRoutePro
 
     if (allowedUserTypes && !allowedUserTypes.includes(user.user_type)) {
       console.log('❌ Wrong user type, redirecting...');
+      
+      // ✅ FIXED: Added admin redirect case
       if (user.user_type === 'talent') {
         router.push('/dashboard/talent');
       } else if (user.user_type === 'recruiter') {
         router.push('/dashboard/recruiter');
+      } else if (user.user_type === 'admin') {
+        router.push('/dashboard/admin');
       } else {
         router.push('/dashboard');
       }
