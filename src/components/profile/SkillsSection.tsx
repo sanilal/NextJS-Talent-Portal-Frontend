@@ -9,6 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { TalentSkill, Skill } from '@/types';
 
+// ✅ Define the proficiency type
+type ProficiencyLevel = 'beginner' | 'intermediate' | 'advanced' | 'expert';
+
 interface SkillsSectionProps {
   skills?: TalentSkill[];
   allSkills: Skill[];
@@ -19,13 +22,18 @@ export function SkillsSection({ skills = [], allSkills }: SkillsSectionProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedSkillId, setSelectedSkillId] = useState<number | null>(null);
-  const [proficiency, setProficiency] = useState<string>('intermediate');
+  // ✅ FIXED: Type proficiency as union type, not string
+  const [proficiency, setProficiency] = useState<ProficiencyLevel>('intermediate');
   const [yearsOfExperience, setYearsOfExperience] = useState<number>(1);
 
   // Add skill mutation
   const addMutation = useMutation({
-    mutationFn: (data: { skill_id: number; proficiency_level: string; years_of_experience: number }) =>
-      talentsAPI.addSkill(data),
+    // ✅ FIXED: Type the data parameter with proper proficiency_level type
+    mutationFn: (data: { 
+      skill_id: number; 
+      proficiency_level: ProficiencyLevel; 
+      years_of_experience: number 
+    }) => talentsAPI.addSkill(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['talent-profile'] });
       toast.success('Skill added successfully');
@@ -152,7 +160,8 @@ export function SkillsSection({ skills = [], allSkills }: SkillsSectionProps) {
                 </label>
                 <select
                   value={proficiency}
-                  onChange={(e) => setProficiency(e.target.value)}
+                  // ✅ FIXED: Cast to ProficiencyLevel
+                  onChange={(e) => setProficiency(e.target.value as ProficiencyLevel)}
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="beginner">Beginner</option>
@@ -189,8 +198,7 @@ export function SkillsSection({ skills = [], allSkills }: SkillsSectionProps) {
               <Button
                 size="sm"
                 onClick={handleAdd}
-                isLoading={addMutation.isPending}
-                disabled={!selectedSkillId}
+                disabled={addMutation.isPending || !selectedSkillId}
               >
                 <Check className="h-4 w-4 mr-1" />
                 Add Skill
@@ -228,7 +236,8 @@ export function SkillsSection({ skills = [], allSkills }: SkillsSectionProps) {
                     </div>
                     <select
                       value={proficiency}
-                      onChange={(e) => setProficiency(e.target.value)}
+                      // ✅ FIXED: Cast to ProficiencyLevel
+                      onChange={(e) => setProficiency(e.target.value as ProficiencyLevel)}
                       className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
                       <option value="beginner">Beginner</option>
@@ -275,12 +284,14 @@ export function SkillsSection({ skills = [], allSkills }: SkillsSectionProps) {
                           setYearsOfExperience(1);
                         }}
                         className="p-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                        aria-label="Cancel editing"
                       >
                         <X className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleUpdate(talentSkill.id)}
                         className="p-1.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/20 rounded"
+                        aria-label="Save changes"
                       >
                         <Check className="h-4 w-4" />
                       </button>
@@ -294,6 +305,7 @@ export function SkillsSection({ skills = [], allSkills }: SkillsSectionProps) {
                           setYearsOfExperience(talentSkill.years_of_experience || 1);
                         }}
                         className="p-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                        aria-label="Edit skill"
                       >
                         <Edit className="h-4 w-4" />
                       </button>
@@ -304,6 +316,7 @@ export function SkillsSection({ skills = [], allSkills }: SkillsSectionProps) {
                           }
                         }}
                         className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded"
+                        aria-label="Delete skill"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
