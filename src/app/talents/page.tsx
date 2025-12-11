@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -19,7 +20,8 @@ import {
 import { talentsAPI, publicTalentsAPI } from '@/lib/api/talents';
 import type { TalentProfile, TalentFilters, Skill, Category } from '@/types';
 
-export default function TalentsPage() {
+// ✅ Separate component that uses useSearchParams
+function TalentsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -49,7 +51,6 @@ export default function TalentsPage() {
   const { data: talentsResponse, isLoading } = useQuery({
     queryKey: ['public-talents', filters],
     queryFn: () => publicTalentsAPI.list(filters),
-    // ✅ FIXED: Use placeholderData instead of keepPreviousData (React Query v5)
     placeholderData: (previousData) => previousData,
   });
 
@@ -120,7 +121,6 @@ export default function TalentsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <h1 className="text-3xl font-bold text-gray-900">Find Talented Professionals</h1>
           <p className="mt-2 text-gray-600">
-            {/* ✅ CORRECT: Accessing total through meta */}
             Browse {pagination?.meta?.total || 0} talented professionals ready for your next project
           </p>
         </div>
@@ -201,24 +201,24 @@ export default function TalentsPage() {
             </div>
           </div>
 
-          {/* Expandable Filters */}
+          {/* Expanded Filters */}
           {showFilters && (
-            <div className="mt-4 pt-4 border-t space-y-4">
+            <div className="mt-6 pt-6 border-t space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Category */}
+                {/* Category Filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Category
                   </label>
                   <select
-                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     value={filters.category_id || ''}
                     onChange={(e) => handleFilterChange('category_id', e.target.value ? Number(e.target.value) : undefined)}
                   >
                     <option value="">All Categories</option>
                     {categories.map((cat: Category) => (
                       <option key={cat.id} value={cat.id}>
-                        {cat.icon} {cat.name} {cat.talents_count ? `(${cat.talents_count})` : ''}
+                        {cat.name}
                       </option>
                     ))}
                   </select>
@@ -230,33 +230,16 @@ export default function TalentsPage() {
                     Experience Level
                   </label>
                   <select
-                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     value={filters.experience_level || ''}
                     onChange={(e) => handleFilterChange('experience_level', e.target.value || undefined)}
                   >
                     <option value="">All Levels</option>
-                    <option value="entry">Entry Level</option>
+                    <option value="entry">Entry</option>
                     <option value="junior">Junior</option>
                     <option value="intermediate">Intermediate</option>
                     <option value="senior">Senior</option>
                     <option value="expert">Expert</option>
-                  </select>
-                </div>
-
-                {/* Availability */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Availability
-                  </label>
-                  <select
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    value={filters.availability_status || ''}
-                    onChange={(e) => handleFilterChange('availability_status', e.target.value || undefined)}
-                  >
-                    <option value="">All</option>
-                    <option value="available">Available</option>
-                    <option value="busy">Busy</option>
-                    <option value="not_available">Not Available</option>
                   </select>
                 </div>
 
@@ -268,88 +251,81 @@ export default function TalentsPage() {
                   <input
                     type="text"
                     placeholder="City, State, or Country"
-                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     value={filters.location || ''}
                     onChange={(e) => handleFilterChange('location', e.target.value || undefined)}
                   />
                 </div>
+              </div>
 
-                {/* Min Rate */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Min Rate ($/hr)
-                  </label>
+              {/* Hourly Rate Range */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Hourly Rate Range
+                </label>
+                <div className="flex gap-4">
                   <input
                     type="number"
-                    placeholder="0"
-                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    placeholder="Min"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     value={filters.min_rate || ''}
                     onChange={(e) => handleFilterChange('min_rate', e.target.value ? Number(e.target.value) : undefined)}
                   />
-                </div>
-
-                {/* Max Rate */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Max Rate ($/hr)
-                  </label>
+                  <span className="flex items-center text-gray-500">to</span>
                   <input
                     type="number"
-                    placeholder="1000"
-                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    placeholder="Max"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     value={filters.max_rate || ''}
                     onChange={(e) => handleFilterChange('max_rate', e.target.value ? Number(e.target.value) : undefined)}
                   />
                 </div>
               </div>
 
-              {/* Skills Multi-Select */}
+              {/* Skills */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Skills
                 </label>
-                <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-3 border border-gray-300 rounded-lg bg-gray-50">
-                  {skills.filter((s: Skill) => s.is_active).map((skill: Skill) => (
+                <div className="flex flex-wrap gap-2">
+                  {skills.slice(0, 15).map((skill: Skill) => (
                     <button
                       key={skill.id}
                       onClick={() => toggleSkill(skill.id)}
                       className={`px-3 py-1 rounded-full text-sm transition-colors ${
                         filters.skills?.includes(skill.id)
                           ? 'bg-blue-500 text-white'
-                          : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-500'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
-                      {skill.icon} {skill.name}
+                      {skill.name}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Available Only Toggle */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="available-only"
-                  checked={filters.is_available === true}
-                  onChange={(e) => handleFilterChange('is_available', e.target.checked ? true : undefined)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <label htmlFor="available-only" className="text-sm text-gray-700">
-                  Show only available talents
+              {/* Availability */}
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={filters.is_available || false}
+                    onChange={(e) => handleFilterChange('is_available', e.target.checked ? true : undefined)}
+                    className="w-4 h-4 text-blue-500 rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">Available Now Only</span>
                 </label>
               </div>
 
               {/* Clear Filters Button */}
               {hasActiveFilters && (
-                <div className="flex justify-end">
-                  <button
-                    onClick={clearFilters}
-                    className="flex items-center gap-2 px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50"
-                  >
-                    <X className="w-4 h-4" />
-                    Clear All Filters
-                  </button>
-                </div>
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
+                >
+                  <X className="w-4 h-4" />
+                  Clear All Filters
+                </button>
               )}
             </div>
           )}
@@ -357,94 +333,80 @@ export default function TalentsPage() {
 
         {/* Results */}
         {isLoading ? (
-          <div className={viewMode === 'grid' 
-            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-            : 'space-y-4'
-          }>
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-white rounded-lg shadow-sm p-6 animate-pulse">
-                <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4" />
-                <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto mb-2" />
-                <div className="h-3 bg-gray-200 rounded w-1/2 mx-auto" />
-              </div>
-            ))}
+          <div className="text-center py-12">
+            <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="mt-4 text-gray-600">Loading talents...</p>
           </div>
         ) : talents.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-            <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              No talents found
-            </h3>
-            <p className="text-gray-500 mb-4">
-              Try adjusting your filters or search terms
-            </p>
+          <div className="text-center py-12">
+            <p className="text-gray-600 text-lg">No talents found matching your criteria.</p>
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="mt-4 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
               >
-                Clear Filters
+                Clear filters to see all talents
               </button>
             )}
           </div>
         ) : (
           <>
-            {/* Talent Grid/List */}
-            <div className={viewMode === 'grid' 
-              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' 
-              : 'space-y-4'
+            <div className={
+              viewMode === 'grid'
+                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+                : 'space-y-4'
             }>
               {talents.map((talent: TalentProfile) => (
-                <TalentCard key={talent.id} talent={talent} viewMode={viewMode} />
+                <TalentCard
+                  key={talent.id}
+                  talent={talent}
+                  viewMode={viewMode}
+                />
               ))}
             </div>
 
             {/* Pagination */}
-            {/* ✅ FIXED: Simplified redundant check and proper optional chaining */}
-            {pagination?.meta && pagination.meta.last_page > 1 && (
-              <div className="mt-8 flex justify-center items-center gap-2">
+            {pagination && pagination.meta && pagination.meta.last_page > 1 && (
+              <div className="mt-8 flex justify-center gap-2">
                 <button
-                  disabled={pagination.meta.current_page === 1}
-                  onClick={() => handleFilterChange('page', pagination.meta.current_page - 1)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  onClick={() => handleFilterChange('page', Math.max(1, (filters.page || 1) - 1))}
+                  disabled={filters.page === 1}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
                 
-                {/* Page numbers */}
-                <div className="flex gap-1">
-                  {[...Array(Math.min(5, pagination.meta.last_page))].map((_, i) => {
-                    let pageNum;
-                    if (pagination.meta.last_page <= 5) {
-                      pageNum = i + 1;
-                    } else if (pagination.meta.current_page <= 3) {
-                      pageNum = i + 1;
-                    } else if (pagination.meta.current_page >= pagination.meta.last_page - 2) {
-                      pageNum = pagination.meta.last_page - 4 + i;
-                    } else {
-                      pageNum = pagination.meta.current_page - 2 + i;
-                    }
-                    
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => handleFilterChange('page', pageNum)}
-                        className={`px-4 py-2 border rounded-lg ${
-                          pageNum === pagination.meta.current_page
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
+                <div className="flex gap-2">
+                  {Array.from({ length: pagination.meta.last_page }, (_, i) => i + 1)
+                    .filter(page => {
+                      const current = filters.page || 1;
+                      return page === 1 || 
+                             page === pagination.meta.last_page || 
+                             Math.abs(page - current) <= 2;
+                    })
+                    .map((page, idx, arr) => (
+                      <div key={page} className="flex items-center gap-2">
+                        {idx > 0 && arr[idx - 1] !== page - 1 && (
+                          <span className="text-gray-400">...</span>
+                        )}
+                        <button
+                          onClick={() => handleFilterChange('page', page)}
+                          className={`px-4 py-2 rounded-lg ${
+                            page === filters.page
+                              ? 'bg-blue-500 text-white'
+                              : 'border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      </div>
+                    ))}
                 </div>
-                
+
                 <button
-                  disabled={pagination.meta.current_page === pagination.meta.last_page}
-                  onClick={() => handleFilterChange('page', pagination.meta.current_page + 1)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  onClick={() => handleFilterChange('page', Math.min(pagination.meta.last_page, (filters.page || 1) + 1))}
+                  disabled={filters.page === pagination.meta.last_page}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -457,8 +419,23 @@ export default function TalentsPage() {
   );
 }
 
+// ✅ Main page component with Suspense boundary
+export default function TalentsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <TalentsContent />
+    </Suspense>
+  );
+}
+
 // Talent Card Component
-// ✅ FIXED: Properly typed talent prop
 function TalentCard({ 
   talent, 
   viewMode 
@@ -466,7 +443,6 @@ function TalentCard({
   talent: TalentProfile; 
   viewMode: 'grid' | 'list' 
 }) {
-  // ✅ FIXED: Type assertions for skills array
   const primarySkill = talent.skills?.find(s => s.is_primary);
   const skillsList = talent.skills || [];
   
@@ -476,11 +452,9 @@ function TalentCard({
     not_available: { color: 'bg-red-100 text-red-800', label: 'Not Available' },
   };
   
-  // ✅ FIXED: Handle availability_status properly
   const availabilityStatus = (talent as any).availability_status || 'not_available';
   const availability = availabilityConfig[availabilityStatus];
 
-  // ✅ FIXED: Proper avatar URL construction with null checks
   const userAvatar = (talent.user?.avatar_url || (talent as any).avatar) as string | undefined;
   const firstName = talent.user?.first_name || (talent as any).first_name || 'User';
   const lastName = talent.user?.last_name || (talent as any).last_name || '';
