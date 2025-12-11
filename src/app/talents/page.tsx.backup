@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -49,8 +49,7 @@ export default function TalentsPage() {
   const { data: talentsResponse, isLoading } = useQuery({
     queryKey: ['public-talents', filters],
     queryFn: () => publicTalentsAPI.list(filters),
-    // ✅ FIXED: Use placeholderData instead of keepPreviousData (React Query v5)
-    placeholderData: (previousData) => previousData,
+    placeholderData: keepPreviousData,
   });
 
   // Fetch skills for filter dropdown
@@ -120,7 +119,6 @@ export default function TalentsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <h1 className="text-3xl font-bold text-gray-900">Find Talented Professionals</h1>
           <p className="mt-2 text-gray-600">
-            {/* ✅ CORRECT: Accessing total through meta */}
             Browse {pagination?.meta?.total || 0} talented professionals ready for your next project
           </p>
         </div>
@@ -216,7 +214,7 @@ export default function TalentsPage() {
                     onChange={(e) => handleFilterChange('category_id', e.target.value ? Number(e.target.value) : undefined)}
                   >
                     <option value="">All Categories</option>
-                    {categories.map((cat: Category) => (
+                    {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.icon} {cat.name} {cat.talents_count ? `(${cat.talents_count})` : ''}
                       </option>
@@ -309,7 +307,7 @@ export default function TalentsPage() {
                   Skills
                 </label>
                 <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-3 border border-gray-300 rounded-lg bg-gray-50">
-                  {skills.filter((s: Skill) => s.is_active).map((skill: Skill) => (
+                  {skills.filter(s => s.is_active).map((skill) => (
                     <button
                       key={skill.id}
                       onClick={() => toggleSkill(skill.id)}
@@ -394,18 +392,17 @@ export default function TalentsPage() {
               ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' 
               : 'space-y-4'
             }>
-              {talents.map((talent: TalentProfile) => (
+              {talents.map((talent) => (
                 <TalentCard key={talent.id} talent={talent} viewMode={viewMode} />
               ))}
             </div>
 
             {/* Pagination */}
-            {/* ✅ FIXED: Simplified redundant check and proper optional chaining */}
-            {pagination?.meta && pagination.meta.last_page > 1 && (
+            {pagination && pagination?.meta?.last_page > 1 && (
               <div className="mt-8 flex justify-center items-center gap-2">
                 <button
-                  disabled={pagination.meta.current_page === 1}
-                  onClick={() => handleFilterChange('page', pagination.meta.current_page - 1)}
+                  disabled={pagination?.meta?.current_page === 1}
+                  onClick={() => handleFilterChange('page', pagination?.meta?.current_page - 1)}
                   className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
                   Previous
@@ -413,16 +410,16 @@ export default function TalentsPage() {
                 
                 {/* Page numbers */}
                 <div className="flex gap-1">
-                  {[...Array(Math.min(5, pagination.meta.last_page))].map((_, i) => {
+                  {[...Array(Math.min(5, pagination?.meta?.last_page))].map((_, i) => {
                     let pageNum;
-                    if (pagination.meta.last_page <= 5) {
+                    if (pagination?.meta?.last_page <= 5) {
                       pageNum = i + 1;
-                    } else if (pagination.meta.current_page <= 3) {
+                    } else if (pagination?.meta?.current_page <= 3) {
                       pageNum = i + 1;
-                    } else if (pagination.meta.current_page >= pagination.meta.last_page - 2) {
-                      pageNum = pagination.meta.last_page - 4 + i;
+                    } else if (pagination?.meta?.current_page >= pagination?.meta?.last_page - 2) {
+                      pageNum = pagination?.meta?.last_page - 4 + i;
                     } else {
-                      pageNum = pagination.meta.current_page - 2 + i;
+                      pageNum = pagination?.meta?.current_page - 2 + i;
                     }
                     
                     return (
@@ -430,7 +427,7 @@ export default function TalentsPage() {
                         key={pageNum}
                         onClick={() => handleFilterChange('page', pageNum)}
                         className={`px-4 py-2 border rounded-lg ${
-                          pageNum === pagination.meta.current_page
+                          pageNum === pagination?.meta?.current_page
                             ? 'bg-blue-600 text-white border-blue-600'
                             : 'border-gray-300 hover:bg-gray-50'
                         }`}
@@ -442,8 +439,8 @@ export default function TalentsPage() {
                 </div>
                 
                 <button
-                  disabled={pagination.meta.current_page === pagination.meta.last_page}
-                  onClick={() => handleFilterChange('page', pagination.meta.current_page + 1)}
+                  disabled={pagination?.meta?.current_page === pagination?.meta?.last_page}
+                  onClick={() => handleFilterChange('page', pagination?.meta?.current_page + 1)}
                   className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
                   Next
@@ -458,16 +455,14 @@ export default function TalentsPage() {
 }
 
 // Talent Card Component
-// ✅ FIXED: Properly typed talent prop
 function TalentCard({ 
   talent, 
   viewMode 
 }: { 
-  talent: TalentProfile; 
+  talent: any; 
   viewMode: 'grid' | 'list' 
 }) {
-  // ✅ FIXED: Type assertions for skills array
-  const primarySkill = talent.skills?.find(s => s.is_primary);
+  const primarySkill = talent.skills?.find((s: any) => s.is_primary);
   const skillsList = talent.skills || [];
   
   const availabilityConfig: Record<string, { color: string; label: string }> = {
@@ -476,19 +471,12 @@ function TalentCard({
     not_available: { color: 'bg-red-100 text-red-800', label: 'Not Available' },
   };
   
-  // ✅ FIXED: Handle availability_status properly
-  const availabilityStatus = (talent as any).availability_status || 'not_available';
-  const availability = availabilityConfig[availabilityStatus];
+  const availability = availabilityConfig[talent.availability_status || 'not_available'];
 
-  // ✅ FIXED: Proper avatar URL construction with null checks
-  const userAvatar = (talent.user?.avatar_url || (talent as any).avatar) as string | undefined;
-  const firstName = talent.user?.first_name || (talent as any).first_name || 'User';
-  const lastName = talent.user?.last_name || (talent as any).last_name || '';
-  
-  const avatarUrl = userAvatar 
-    ? `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '')}/storage/${userAvatar}`
+  const avatarUrl = talent.avatar 
+    ? `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '')}/storage/${talent.avatar}`
     : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-        `${firstName} ${lastName}`
+        `${talent.first_name} ${talent.last_name}`
       )}&size=128&background=4F46E5&color=fff&bold=true`;
 
   if (viewMode === 'list') {
@@ -497,12 +485,12 @@ function TalentCard({
         <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow flex gap-6">
           <img
             src={avatarUrl}
-            alt={`${firstName} ${lastName}`}
+            alt={`${talent.first_name} ${talent.last_name}`}
             className="w-24 h-24 rounded-full object-cover flex-shrink-0"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                `${firstName} ${lastName}`
+                `${talent.first_name} ${talent.last_name}`
               )}&size=128&background=4F46E5&color=fff&bold=true`;
             }}
           />
@@ -510,7 +498,7 @@ function TalentCard({
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">
-                  {firstName} {lastName}
+                  {talent.first_name} {talent.last_name}
                 </h3>
                 <p className="text-gray-600">
                   {talent.professional_title || primarySkill?.skill?.name || 'Professional'}
@@ -526,7 +514,7 @@ function TalentCard({
             )}
             
             <div className="mt-4 flex flex-wrap gap-2">
-              {skillsList.filter(ts => ts.show_on_profile).slice(0, 5).map(ts => (
+              {skillsList.filter((ts: any) => ts.show_on_profile).slice(0, 5).map((ts: any) => (
                 <span
                   key={ts.id}
                   className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm"
@@ -534,9 +522,9 @@ function TalentCard({
                   {ts.skill?.icon} {ts.skill?.name}
                 </span>
               ))}
-              {skillsList.filter(ts => ts.show_on_profile).length > 5 && (
+              {skillsList.filter((ts: any) => ts.show_on_profile).length > 5 && (
                 <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm">
-                  +{skillsList.filter(ts => ts.show_on_profile).length - 5} more
+                  +{skillsList.filter((ts: any) => ts.show_on_profile).length - 5} more
                 </span>
               )}
             </div>
@@ -563,10 +551,10 @@ function TalentCard({
                   {Number(talent.average_rating).toFixed(1)} ({talent.total_ratings || 0})
                 </span>
               )}
-              {(talent as any).location && (
+              {talent.location && (
                 <span className="flex items-center gap-1">
                   <MapPin className="w-4 h-4" />
-                  {(talent as any).location}
+                  {talent.location}
                 </span>
               )}
             </div>
@@ -589,18 +577,18 @@ function TalentCard({
         <div className="p-6 text-center">
           <img
             src={avatarUrl}
-            alt={`${firstName} ${lastName}`}
+            alt={`${talent.first_name} ${talent.last_name}`}
             className="w-24 h-24 rounded-full border-4 border-white mx-auto -mt-16 mb-4 object-cover"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                `${firstName} ${lastName}`
+                `${talent.first_name} ${talent.last_name}`
               )}&size=128&background=4F46E5&color=fff&bold=true`;
             }}
           />
           
           <h3 className="text-xl font-semibold text-gray-900">
-            {firstName} {lastName}
+            {talent.first_name} {talent.last_name}
           </h3>
           <p className="text-gray-600 mt-1">
             {talent.professional_title || primarySkill?.skill?.name || 'Professional'}
@@ -611,7 +599,7 @@ function TalentCard({
           )}
           
           <div className="mt-4 flex flex-wrap gap-2 justify-center">
-            {skillsList.filter(ts => ts.show_on_profile).slice(0, 3).map(ts => (
+            {skillsList.filter((ts: any) => ts.show_on_profile).slice(0, 3).map((ts: any) => (
               <span
                 key={ts.id}
                 className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs"
@@ -619,9 +607,9 @@ function TalentCard({
                 {ts.skill?.icon} {ts.skill?.name}
               </span>
             ))}
-            {skillsList.filter(ts => ts.show_on_profile).length > 3 && (
+            {skillsList.filter((ts: any) => ts.show_on_profile).length > 3 && (
               <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
-                +{skillsList.filter(ts => ts.show_on_profile).length - 3}
+                +{skillsList.filter((ts: any) => ts.show_on_profile).length - 3}
               </span>
             )}
           </div>
