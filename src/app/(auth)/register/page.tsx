@@ -460,7 +460,7 @@ function RegisterContent() {
                       id="phone"
                       type="tel"
                       className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
-                      placeholder="+1 (555) 123-4567"
+                      placeholder="+971 52 123 4567"
                     />
                   </div>
                 </div>
