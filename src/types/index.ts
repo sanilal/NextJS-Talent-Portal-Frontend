@@ -1,4 +1,7 @@
-// User & Authentication Types
+// ============================================
+// USER & AUTHENTICATION TYPES
+// ============================================
+
 export interface User {
   id: number;
   first_name: string;
@@ -13,8 +16,31 @@ export interface User {
   avatar_url?: string;
   is_verified: boolean;
   is_active: boolean;
+  is_email_verified: boolean; // ✅ Added for new flow
   created_at: string;
   updated_at: string;
+  // ✅ NEW: Country support
+  country_id?: number;
+  country?: Country;
+  state_id?: number;
+  state?: State;
+}
+
+// ✅ NEW: Country & State Types
+export interface Country {
+  id: number;
+  name: string;
+  code: string;
+  phone_code?: string;
+  flag?: string;
+}
+
+export interface State {
+  id: number;
+  name: string;
+  code: string;
+  country_id: number;
+  country?: Country;
 }
 
 export interface AuthResponse {
@@ -28,7 +54,6 @@ export interface LoginCredentials {
   password: string;
 }
 
-// ✅ FIXED: Updated gender to match auth.ts API expectations
 export interface RegisterData {
   first_name: string;
   last_name: string;
@@ -37,11 +62,49 @@ export interface RegisterData {
   password_confirmation: string;
   user_type: 'talent' | 'recruiter';
   phone?: string;
+  country_id?: number; // ✅ Added for new registration flow
   date_of_birth?: string;
-  gender?: 'male' | 'female' | 'other' | '';  // ✅ Changed from string to union type
+  gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say' | '';
 }
 
-// Skill Types (UPDATED to match Laravel backend)
+// ✅ NEW: Email Verification Types
+export interface LoginResponse {
+  token: string;
+  token_type: string;
+  user: User;
+  message: string;
+  requires_verification?: boolean; // ✅ For unverified email redirect
+}
+
+export interface RegisterResponse {
+  message: string;
+  user?: User;
+  token?: string;
+  requires_verification?: boolean; // ✅ Indicates email verification needed
+}
+
+export interface VerifyEmailData {
+  email: string;
+  otp: string;
+}
+
+export interface VerifyEmailResponse {
+  message: string;
+  token?: string;
+  token_type?: string;
+  user?: User;
+}
+
+export interface ResendOTPResponse {
+  message: string;
+  expires_in?: number;
+  retry_after?: number;
+}
+
+// ============================================
+// SKILL TYPES
+// ============================================
+
 export interface Skill {
   id: number;
   name: string;
@@ -60,10 +123,9 @@ export interface Skill {
   deleted_at?: string;
 }
 
-// TalentSkill Pivot Types (UPDATED to match Laravel pivot table)
 export interface TalentSkill {
   id: number;
-  talent_profile_id: number; // CRITICAL: matches Laravel backend
+  talent_profile_id: number;
   skill_id: number;
   skill?: Skill;
   description?: string;
@@ -77,7 +139,7 @@ export interface TalentSkill {
   }>;
   is_verified: boolean;
   image_path?: string;
-  image_url?: string; // Computed by Laravel accessor
+  image_url?: string;
   video_url?: string;
   is_primary: boolean;
   display_order: number;
@@ -86,7 +148,10 @@ export interface TalentSkill {
   updated_at: string;
 }
 
-// Talent Profile Types (UPDATED)
+// ============================================
+// PROFILE TYPES
+// ============================================
+
 export interface TalentProfile {
   id: number;
   user_id: number;
@@ -98,14 +163,14 @@ export interface TalentProfile {
   hourly_rate_min?: number;
   hourly_rate_max?: number;
   currency: string;
-  availability_types?: string[]; // JSON field
+  availability_types?: string[];
   is_available: boolean;
-  work_preferences?: Record<string, any>; // JSON field
-  preferred_locations?: string[]; // JSON field
+  work_preferences?: Record<string, any>;
+  preferred_locations?: string[];
   languages?: Array<{
     language: string;
     proficiency: string;
-  }>; // JSON field
+  }>;
   is_featured: boolean;
   is_public: boolean;
   profile_views: number;
@@ -114,7 +179,7 @@ export interface TalentProfile {
   profile_completion_percentage: number;
   
   // Relations
-  skills?: TalentSkill[]; // Changed from talent_skills to match eager loading
+  skills?: TalentSkill[];
   experiences?: Experience[];
   education?: Education[];
   portfolios?: Portfolio[];
@@ -124,7 +189,15 @@ export interface TalentProfile {
   deleted_at?: string;
 }
 
-// Experience Types
+export interface RecruiterProfile {
+  id: string;
+  user_id: string;
+  company_name?: string;
+  company_website?: string;
+  company_size?: string;
+  industry?: string;
+}
+
 export interface Experience {
   id: number;
   talent_profile_id: number;
@@ -139,7 +212,6 @@ export interface Experience {
   updated_at: string;
 }
 
-// Education Types
 export interface Education {
   id: number;
   talent_profile_id: number;
@@ -155,7 +227,6 @@ export interface Education {
   updated_at: string;
 }
 
-// Portfolio Types
 export interface Portfolio {
   id: number;
   talent_profile_id: number;
@@ -173,7 +244,10 @@ export interface Portfolio {
   updated_at: string;
 }
 
-// Review Types (NEW - from proposed talent.ts)
+// ============================================
+// REVIEW & STATS TYPES
+// ============================================
+
 export interface Review {
   id: number;
   talent_profile_id: number;
@@ -190,7 +264,6 @@ export interface Review {
   };
 }
 
-// Talent Stats (NEW)
 export interface TalentStats {
   total_projects: number;
   total_reviews: number;
@@ -199,7 +272,10 @@ export interface TalentStats {
   completion_rate?: number;
 }
 
-// Project Types
+// ============================================
+// PROJECT TYPES
+// ============================================
+
 export interface Project {
   id: number;
   title: string;
@@ -245,7 +321,10 @@ export interface ProjectFormData {
   skill_ids?: number[];
 }
 
-// Application Types
+// ============================================
+// APPLICATION TYPES
+// ============================================
+
 export interface Application {
   id: number;
   project_id: number;
@@ -270,7 +349,10 @@ export interface ApplicationNote {
   created_at: string;
 }
 
-// Category Types
+// ============================================
+// CATEGORY TYPES
+// ============================================
+
 export interface Category {
   id: number;
   name: string;
@@ -284,20 +366,23 @@ export interface Category {
   updated_at: string;
 }
 
-// Filter Types (UPDATED for public talent directory)
+// ============================================
+// FILTER & SEARCH TYPES
+// ============================================
+
 export interface TalentFilters {
-  search?: string; // Searches name, professional_title, summary
-  skills?: number[]; // Array of skill IDs
-  skill_ids?: number[]; // Alternative naming
+  search?: string;
+  skills?: number[];
+  skill_ids?: number[];
   category_id?: number;
   experience_level?: string | string[];
   availability_status?: string | string[];
-  availability_types?: string[]; // JSON field filter
+  availability_types?: string[];
   min_rate?: number;
   max_rate?: number;
   hourly_rate_min?: number;
   hourly_rate_max?: number;
-  location?: string; // City, state, or country
+  location?: string;
   city?: string;
   state?: string;
   country?: string;
@@ -310,7 +395,6 @@ export interface TalentFilters {
   page?: number;
 }
 
-// Search Types
 export interface SearchFilters {
   experience_level?: string[];
   availability?: string[];
@@ -334,7 +418,10 @@ export interface SearchResult<T> {
   meta?: PaginationMeta;
 }
 
-// AI Matching Types
+// ============================================
+// AI MATCHING TYPES
+// ============================================
+
 export interface MatchResult {
   talent?: TalentProfile;
   project?: Project;
@@ -343,7 +430,10 @@ export interface MatchResult {
   reasons?: string[];
 }
 
-// Pagination Types
+// ============================================
+// PAGINATION TYPES
+// ============================================
+
 export interface PaginationMeta {
   current_page: number;
   last_page: number;
@@ -364,7 +454,10 @@ export interface PaginatedResponse<T> {
   };
 }
 
-// API Response Types
+// ============================================
+// API RESPONSE TYPES
+// ============================================
+
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -372,7 +465,6 @@ export interface ApiResponse<T = any> {
   errors?: Record<string, string[]>;
 }
 
-// Specific API Response Types
 export interface TalentProfileResponse {
   success: boolean;
   data: {
@@ -386,7 +478,10 @@ export interface TalentListResponse {
   data: PaginatedResponse<TalentProfile>;
 }
 
-// Talent Skills API Payloads
+// ============================================
+// TALENT SKILLS API PAYLOADS
+// ============================================
+
 export interface CreateTalentSkillPayload {
   skill_id: number;
   description?: string;
@@ -406,7 +501,7 @@ export interface CreateTalentSkillPayload {
 }
 
 export interface UpdateTalentSkillPayload extends Partial<CreateTalentSkillPayload> {
-  _method?: 'PUT'; // For Laravel
+  _method?: 'PUT';
 }
 
 export interface ReorderSkillsPayload {
@@ -416,7 +511,10 @@ export interface ReorderSkillsPayload {
   }>;
 }
 
-// Message Types
+// ============================================
+// MESSAGE TYPES
+// ============================================
+
 export interface Message {
   id: number;
   sender_id: number;
@@ -434,7 +532,10 @@ export interface Conversation {
   unread_count: number;
 }
 
-// Notification Types
+// ============================================
+// NOTIFICATION TYPES
+// ============================================
+
 export interface Notification {
   id: string;
   type: string;
@@ -443,7 +544,10 @@ export interface Notification {
   created_at: string;
 }
 
-// Dashboard Stats Types
+// ============================================
+// DASHBOARD STATS TYPES
+// ============================================
+
 export interface DashboardStats {
   total_projects?: number;
   active_projects?: number;
@@ -453,4 +557,12 @@ export interface DashboardStats {
   unread_messages?: number;
   profile_completeness?: number;
   total_views?: number;
+}
+
+// ============================================
+// FORM ERROR TYPES
+// ============================================
+
+export interface FormErrors {
+  [key: string]: string;
 }
