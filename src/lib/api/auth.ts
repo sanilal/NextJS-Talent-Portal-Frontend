@@ -1,75 +1,20 @@
 import api from './axios';
-
-// Match your actual backend response structure
-interface LoginResponse {
-  token: string;
-  token_type: string;
-  user: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string;
-    user_type: 'talent' | 'recruiter';
-    email_verified_at?: string;
-    phone?: string;
-    bio?: string;
-    location?: string;
-    account_status: string;
-    is_verified: boolean;
-    talent_profile?: any;
-    recruiter_profile?: any;
-  };
-  message: string;
-}
-
-interface RegisterData {
-  email: string;
-  password: string;
-  password_confirmation: string;
-  first_name: string;
-  last_name: string;
-  user_type: 'talent' | 'recruiter';
-  category_id?: string;
-  phone?: string;
-  date_of_birth?: string;
-  gender?: 'male' | 'female' | 'other' | '';
-}
+import type {
+  LoginResponse,
+  RegisterData,
+  RegisterResponse,
+  VerifyEmailData,
+  VerifyEmailResponse,
+  ResendOTPResponse,
+} from '@/types';
 
 export const authApi = {
-  // Login - Just return data, don't touch store
-  login: async (email: string, password: string) => {
+  /**
+   * Register a new user
+   */
+  register: async (data: RegisterData): Promise<RegisterResponse> => {
     try {
-      const response = await api.post<LoginResponse>('/auth/login', {
-        email,
-        password,
-      });
-
-      return response.data;
-    } catch (error: any) {
-      console.error('Login error:', error.response?.data || error.message);
-      throw error;
-    }
-  },
-
-  // Register - Map user_type to role for backend
-  register: async (data: RegisterData) => {
-    try {
-      // Transform the data to match backend expectations
-      const requestData = {
-        first_name: data.first_name,
-        last_name: data.last_name,
-        email: data.email,
-        password: data.password,
-        password_confirmation: data.password_confirmation,
-        user_type: data.user_type,
-        category_id: data.category_id,
-        phone: data.phone,
-        date_of_birth: data.date_of_birth,
-        gender: data.gender,
-      };
-
-      const response = await api.post<LoginResponse>('/auth/register', requestData);
-
+      const response = await api.post<RegisterResponse>('/auth/register', data);
       return response.data;
     } catch (error: any) {
       console.error('Register error:', error.response?.data || error.message);
@@ -77,7 +22,26 @@ export const authApi = {
     }
   },
 
-  // Logout - Just make the API call
+  /**
+   * Login user
+   * Returns 403 with requires_verification if email not verified
+   */
+  login: async (email: string, password: string): Promise<LoginResponse> => {
+    try {
+      const response = await api.post<LoginResponse>('/auth/login', {
+        email,
+        password,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Login error:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Logout user
+   */
   logout: async () => {
     try {
       await api.post('/auth/logout');
@@ -88,10 +52,12 @@ export const authApi = {
     }
   },
 
-  // Get current user - Just return user data
+  /**
+   * Get current authenticated user
+   */
   getCurrentUser: async () => {
     try {
-      const response = await api.get('/auth/me');
+      const response = await api.get('/user');
       return response.data.user || response.data;
     } catch (error: any) {
       console.error('Get current user error:', error.response?.data || error.message);
@@ -99,10 +65,51 @@ export const authApi = {
     }
   },
 
-  // Request password reset
+  /**
+   * Verify email with OTP
+   */
+  verifyEmail: async (data: VerifyEmailData): Promise<VerifyEmailResponse> => {
+    try {
+      const response = await api.post<VerifyEmailResponse>('/auth/email/verify', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Verify email error:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Resend OTP to email
+   */
+  resendOTP: async (email: string): Promise<ResendOTPResponse> => {
+    try {
+      const response = await api.post<ResendOTPResponse>('/auth/email/resend', { email });
+      return response.data;
+    } catch (error: any) {
+      console.error('Resend OTP error:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Check email verification status
+   */
+  checkVerificationStatus: async (email: string) => {
+    try {
+      const response = await api.get(`/auth/email/status?email=${email}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Check verification status error:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Request password reset
+   */
   forgotPassword: async (email: string) => {
     try {
-      const response = await api.post('/auth/forgot-password', { email });
+      const response = await api.post('/auth/password/email', { email });
       return response.data;
     } catch (error: any) {
       console.error('Forgot password error:', error.response?.data || error.message);
@@ -110,10 +117,16 @@ export const authApi = {
     }
   },
 
-  // Reset password
-  resetPassword: async (token: string, password: string, password_confirmation: string) => {
+  /**
+   * Reset password with token
+   */
+  resetPassword: async (
+    token: string,
+    password: string,
+    password_confirmation: string
+  ) => {
     try {
-      const response = await api.post('/auth/reset-password', {
+      const response = await api.post('/auth/password/reset', {
         token,
         password,
         password_confirmation,
@@ -125,24 +138,59 @@ export const authApi = {
     }
   },
 
-  // Verify email
-  verifyEmail: async (token: string) => {
+  /**
+   * Update user profile
+   */
+  updateProfile: async (data: any) => {
     try {
-      const response = await api.post('/auth/verify-email', { token });
+      const response = await api.put('/user/profile', data);
       return response.data;
     } catch (error: any) {
-      console.error('Verify email error:', error.response?.data || error.message);
+      console.error('Update profile error:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+};
+
+/**
+ * Countries API
+ */
+export const countriesApi = {
+  /**
+   * Get all countries
+   */
+  getAll: async () => {
+    try {
+      const response = await api.get('/public/countries');
+      return response.data.data || response.data;
+    } catch (error: any) {
+      console.error('Get countries error:', error.response?.data || error.message);
       throw error;
     }
   },
 
-  // Resend verification email
-  resendVerification: async () => {
+  /**
+   * Search countries
+   */
+  search: async (query: string) => {
     try {
-      const response = await api.post('/auth/resend-verification');
-      return response.data;
+      const response = await api.get(`/public/countries/search?q=${query}`);
+      return response.data.data || response.data;
     } catch (error: any) {
-      console.error('Resend verification error:', error.response?.data || error.message);
+      console.error('Search countries error:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Get states for a country
+   */
+  getStates: async (countryId: number) => {
+    try {
+      const response = await api.get(`/public/states?country_id=${countryId}`);
+      return response.data.data || response.data;
+    } catch (error: any) {
+      console.error('Get states error:', error.response?.data || error.message);
       throw error;
     }
   },
