@@ -40,9 +40,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     console.log('Submitting login:', data.email);
     
-    // const result = await login(data);
     const result = await useAuthStore.getState().login(data);
-
 
     if (result.success) {
       toast.success('Welcome back!');
@@ -57,8 +55,28 @@ export default function LoginPage() {
         router.push('/dashboard');
       }
     } else {
-      const errorMessage = result.error?.message || 'Invalid email or password';
-      toast.error(errorMessage);
+      // ✅ NEW: Handle email verification redirect
+      if (result.error?.response?.status === 403) {
+        const errorData = result.error.response.data;
+        
+        // Check if email verification is required
+        if (errorData.requires_verification) {
+          toast.info('Please verify your email to continue');
+          // Redirect to email verification page
+          router.push(
+            `/verify-email?email=${encodeURIComponent(data.email)}`
+          );
+          return;
+        }
+        
+        // Other 403 errors (suspended, banned, etc.)
+        toast.error(errorData.message || 'Access denied');
+      } else {
+        const errorMessage = result.error?.response?.data?.message || 
+                            result.error?.message || 
+                            'Invalid email or password';
+        toast.error(errorMessage);
+      }
       console.error('Login error:', result.error);
     }
   };
@@ -165,7 +183,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Submit Button - IMPROVED */}
+            {/* Submit Button */}
             <div>
               <button
                 type="submit"
