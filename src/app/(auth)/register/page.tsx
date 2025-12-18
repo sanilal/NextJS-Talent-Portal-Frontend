@@ -8,11 +8,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { User, Mail, Lock, Phone, Calendar, Eye, EyeOff, Briefcase, Sparkles, ArrowRight, Layers } from 'lucide-react';
+import { User, Mail, Lock, Phone, Calendar, Eye, EyeOff, Briefcase, Sparkles, ArrowRight, Layers, Globe } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { PublicRoute } from '@/components/auth/PublicRoute';
 import api from '@/lib/api/axios';
 
+// ✅ UPDATED: Added country_id to schema
 const registerSchema = z.object({
   first_name: z.string().min(2, 'First name must be at least 2 characters'),
   last_name: z.string().min(2, 'Last name must be at least 2 characters'),
@@ -21,9 +22,10 @@ const registerSchema = z.object({
   password_confirmation: z.string(),
   user_type: z.enum(['talent', 'recruiter']),
   category_id: z.string().optional(),
+  country_id: z.string().min(1, 'Please select a country'), // ✅ NEW: Required field
   phone: z.string().optional(),
   date_of_birth: z.string().optional(),
-  gender: z.enum(['male', 'female', 'other', '']).optional(),
+  gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say', '']).optional(),
 }).refine((data) => data.password === data.password_confirmation, {
   message: "Passwords don't match",
   path: ['password_confirmation'],
@@ -59,14 +61,33 @@ const FALLBACK_CATEGORIES = [
   { id: 15, name: 'Virtual Assistant' },
 ];
 
+// ✅ NEW: Fallback countries
+const FALLBACK_COUNTRIES = [
+  { id: 1, name: 'United Arab Emirates' },
+  { id: 2, name: 'United States' },
+  { id: 3, name: 'United Kingdom' },
+  { id: 4, name: 'India' },
+  { id: 5, name: 'Pakistan' },
+  { id: 6, name: 'Bangladesh' },
+  { id: 7, name: 'Saudi Arabia' },
+  { id: 8, name: 'Canada' },
+  { id: 9, name: 'Australia' },
+  { id: 10, name: 'Singapore' },
+];
+
 // ✅ STEP 1: Extract content into separate component
 function RegisterContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();  // ✅ Now wrapped in Suspense
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  
+  // ✅ NEW: Countries state
+  const [countries, setCountries] = useState<Array<{ id: number; name: string }>>([]);
+  const [loadingCountries, setLoadingCountries] = useState(true);
+  
   const register = useAuthStore((state) => state.register);
   const isLoading = useAuthStore((state) => state.isLoading);
 
@@ -95,7 +116,6 @@ function RegisterContent() {
         const fetchedCategories = response.data?.data || response.data || [];
         console.log('🔍 Fetched Categories:', fetchedCategories);
 
-        
         if (Array.isArray(fetchedCategories) && fetchedCategories.length > 0) {
           console.log('✅ Using API categories');
           setCategories(fetchedCategories);
@@ -105,7 +125,6 @@ function RegisterContent() {
         }
       } catch (error) {
         console.error('❌ Failed to fetch categories:', error);
-        console.warn('Failed to fetch categories, using fallback:', error);
         setCategories(FALLBACK_CATEGORIES);
       } finally {
         setLoadingCategories(false);
@@ -113,6 +132,33 @@ function RegisterContent() {
     };
 
     fetchCategories();
+  }, []);
+
+  // ✅ NEW: Fetch countries on mount
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await api.get('public/countries');
+        console.log('🌍 Countries API Response:', response.data);
+
+        const fetchedCountries = response.data?.data || response.data || [];
+        
+        if (Array.isArray(fetchedCountries) && fetchedCountries.length > 0) {
+          console.log('✅ Using API countries');
+          setCountries(fetchedCountries);
+        } else {
+          console.warn('⚠️ Using fallback countries');
+          setCountries(FALLBACK_COUNTRIES);
+        }
+      } catch (error) {
+        console.error('❌ Failed to fetch countries:', error);
+        setCountries(FALLBACK_COUNTRIES);
+      } finally {
+        setLoadingCountries(false);
+      }
+    };
+
+    fetchCountries();
   }, []);
 
   // Set user type from URL params
@@ -123,25 +169,26 @@ function RegisterContent() {
     }
   }, [searchParams, setValue]);
 
+  // ✅ UPDATED: onSubmit now redirects to verification instead of dashboard
   const onSubmit = async (data: RegisterFormData) => {
-
     console.log('📋 Form data from React Hook Form:', data);
-  console.log('👤 user_type value:', data.user_type);
-  console.log('🏷️ category_id value:', data.category_id);
-  console.log('🏷️ category_id type:', typeof data.category_id);
+    console.log('👤 user_type value:', data.user_type);
+    console.log('🏷️ category_id value:', data.category_id);
+    console.log('🌍 country_id value:', data.country_id);
 
     const result = await register(data);
 
     if (result.success) {
-      toast.success('Account created successfully!');
+      toast.success('Account created successfully! Please verify your email.');
       
-      if (data.user_type === 'talent') {
-        router.push('/dashboard/talent');
-      } else {
-        router.push('/dashboard/recruiter');
-      }
+      // ✅ NEW: Redirect to email verification instead of dashboard
+      router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
     } else {
-      toast.error(result.error?.message || 'Registration failed');
+      const errorMessage = result.error?.response?.data?.message || 
+                          result.error?.message || 
+                          'Registration failed';
+      toast.error(errorMessage);
+      console.error('Registration error:', result.error);
     }
   };
 
@@ -174,80 +221,31 @@ function RegisterContent() {
               <button
                 type="button"
                 onClick={() => setValue('user_type', 'talent')}
-                className={`relative p-6 rounded-xl border-2 transition-all duration-200 ${
+                className={`flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-semibold transition-all duration-200 ${
                   userType === 'talent'
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-lg scale-105'
-                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 hover:shadow-md'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-105'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
-                <div className="flex flex-col items-center gap-3">
-                  <div className={`p-3 rounded-full ${
-                    userType === 'talent' 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                  }`}>
-                    <User className="h-6 w-6" />
-                  </div>
-                  <div className="text-center">
-                    <h3 className={`font-bold text-lg ${
-                      userType === 'talent' 
-                        ? 'text-blue-600 dark:text-blue-400' 
-                        : 'text-gray-700 dark:text-gray-300'
-                    }`}>
-                      I'm a Talent
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Looking for opportunities
-                    </p>
-                  </div>
-                  {userType === 'talent' && (
-                    <div className="absolute top-3 right-3">
-                      <div className="h-3 w-3 rounded-full bg-blue-500 animate-pulse" />
-                    </div>
-                  )}
-                </div>
+                <User className="h-5 w-5" />
+                I'm a Talent
               </button>
-
               <button
                 type="button"
                 onClick={() => setValue('user_type', 'recruiter')}
-                className={`relative p-6 rounded-xl border-2 transition-all duration-200 ${
+                className={`flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-semibold transition-all duration-200 ${
                   userType === 'recruiter'
-                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 shadow-lg scale-105'
-                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-indigo-300 hover:shadow-md'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-105'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
-                <div className="flex flex-col items-center gap-3">
-                  <div className={`p-3 rounded-full ${
-                    userType === 'recruiter' 
-                      ? 'bg-indigo-500 text-white' 
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                  }`}>
-                    <Briefcase className="h-6 w-6" />
-                  </div>
-                  <div className="text-center">
-                    <h3 className={`font-bold text-lg ${
-                      userType === 'recruiter' 
-                        ? 'text-indigo-600 dark:text-indigo-400' 
-                        : 'text-gray-700 dark:text-gray-300'
-                    }`}>
-                      I'm Hiring
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Looking for talents
-                    </p>
-                  </div>
-                  {userType === 'recruiter' && (
-                    <div className="absolute top-3 right-3">
-                      <div className="h-3 w-3 rounded-full bg-indigo-500 animate-pulse" />
-                    </div>
-                  )}
-                </div>
+                <Briefcase className="h-5 w-5" />
+                I'm a Recruiter
               </button>
             </div>
 
             {/* Form */}
-            <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
+            <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
               {/* Name Fields */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
@@ -262,6 +260,7 @@ function RegisterContent() {
                       {...registerField('first_name')}
                       id="first_name"
                       type="text"
+                      autoComplete="given-name"
                       className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
                       placeholder="John"
                     />
@@ -283,6 +282,7 @@ function RegisterContent() {
                       {...registerField('last_name')}
                       id="last_name"
                       type="text"
+                      autoComplete="family-name"
                       className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
                       placeholder="Doe"
                     />
@@ -313,6 +313,39 @@ function RegisterContent() {
                 </div>
                 {errors.email && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>
+                )}
+              </div>
+
+              {/* ✅ NEW: Country Field */}
+              <div>
+                <label htmlFor="country_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Country
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Globe className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <select
+                    {...registerField('country_id')}
+                    id="country_id"
+                    disabled={loadingCountries}
+                    className="appearance-none block w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">Select your country...</option>
+                    {countries.map((country) => (
+                      <option key={country.id} value={country.id}>
+                        {country.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                </div>
+                {errors.country_id && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.country_id.message}</p>
                 )}
               </div>
 
