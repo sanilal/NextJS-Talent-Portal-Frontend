@@ -1,6 +1,5 @@
 'use client';
 
-// ✅ ADDED: Import Suspense
 import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -12,8 +11,8 @@ import { User, Mail, Lock, Phone, Calendar, Eye, EyeOff, Briefcase, Sparkles, Ar
 import { useAuthStore } from '@/store/authStore';
 import { PublicRoute } from '@/components/auth/PublicRoute';
 import api from '@/lib/api/axios';
+import { FALLBACK_CATEGORIES, FALLBACK_COUNTRIES, type Category, type Country } from '@/lib/fallback-data';
 
-// ✅ UPDATED: Added country_id to schema
 const registerSchema = z.object({
   first_name: z.string().min(2, 'First name must be at least 2 characters'),
   last_name: z.string().min(2, 'Last name must be at least 2 characters'),
@@ -22,7 +21,7 @@ const registerSchema = z.object({
   password_confirmation: z.string(),
   user_type: z.enum(['talent', 'recruiter']),
   category_id: z.string().optional(),
-  country_id: z.string().min(1, 'Please select a country'), // ✅ NEW: Required field
+  country_id: z.string().min(1, 'Please select a country'),
   phone: z.string().optional(),
   date_of_birth: z.string().optional(),
   gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say', '']).optional(),
@@ -30,7 +29,6 @@ const registerSchema = z.object({
   message: "Passwords don't match",
   path: ['password_confirmation'],
 }).refine((data) => {
-  // category_id is required for talents
   if (data.user_type === 'talent' && !data.category_id) {
     return false;
   }
@@ -42,50 +40,14 @@ const registerSchema = z.object({
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
-// Fallback categories in case API fails
-const FALLBACK_CATEGORIES = [
-  { id: 1, name: 'Software Development' },
-  { id: 2, name: 'Web Development' },
-  { id: 3, name: 'Mobile Development' },
-  { id: 4, name: 'UI/UX Design' },
-  { id: 5, name: 'Graphic Design' },
-  { id: 6, name: 'Content Writing' },
-  { id: 7, name: 'Digital Marketing' },
-  { id: 8, name: 'SEO Specialist' },
-  { id: 9, name: 'Data Science' },
-  { id: 10, name: 'DevOps Engineer' },
-  { id: 11, name: 'Project Management' },
-  { id: 12, name: 'Business Analysis' },
-  { id: 13, name: 'Video Editing' },
-  { id: 14, name: 'Photography' },
-  { id: 15, name: 'Virtual Assistant' },
-];
-
-// ✅ NEW: Fallback countries
-const FALLBACK_COUNTRIES = [
-  { id: 1, name: 'United Arab Emirates' },
-  { id: 2, name: 'United States' },
-  { id: 3, name: 'United Kingdom' },
-  { id: 4, name: 'India' },
-  { id: 5, name: 'Pakistan' },
-  { id: 6, name: 'Bangladesh' },
-  { id: 7, name: 'Saudi Arabia' },
-  { id: 8, name: 'Canada' },
-  { id: 9, name: 'Australia' },
-  { id: 10, name: 'Singapore' },
-];
-
-// ✅ STEP 1: Extract content into separate component
 function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
-  
-  // ✅ NEW: Countries state
-  const [countries, setCountries] = useState<Array<{ id: number; name: string }>>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
   const [loadingCountries, setLoadingCountries] = useState(true);
   
   const register = useAuthStore((state) => state.register);
@@ -106,19 +68,27 @@ function RegisterContent() {
 
   const userType = watch('user_type');
 
-  // Fetch categories on mount
+  // ✅ FIXED: Fetch categories with proper data extraction
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const response = await api.get('public/categories');
-        console.log('🔍 API Response:', response.data);
+        console.log('🔍 Raw Categories API Response:', response.data);
 
-        const fetchedCategories = response.data?.data || response.data || [];
-        console.log('🔍 Fetched Categories:', fetchedCategories);
-
-        if (Array.isArray(fetchedCategories) && fetchedCategories.length > 0) {
-          console.log('✅ Using API categories');
-          setCategories(fetchedCategories);
+        // The API returns: { status: 1, message: "...", data: [{ category: {...} }] }
+        const apiData = response.data?.data || [];
+        
+        if (Array.isArray(apiData) && apiData.length > 0) {
+          // Extract the nested category object and map categoryName -> name
+          const transformedCategories: Category[] = apiData.map((item: any) => ({
+            id: item.category.id,
+            name: item.category.categoryName,
+            slug: item.category.slug,
+            description: item.category.description,
+          }));
+          
+          console.log('✅ Using API categories:', transformedCategories);
+          setCategories(transformedCategories);
         } else {
           console.warn('⚠️ Using fallback categories');
           setCategories(FALLBACK_CATEGORIES);
@@ -134,18 +104,27 @@ function RegisterContent() {
     fetchCategories();
   }, []);
 
-  // ✅ NEW: Fetch countries on mount
+  // ✅ FIXED: Fetch countries with proper data extraction
   useEffect(() => {
     const fetchCountries = async () => {
       try {
         const response = await api.get('public/countries');
-        console.log('🌍 Countries API Response:', response.data);
+        console.log('🌍 Raw Countries API Response:', response.data);
 
-        const fetchedCountries = response.data?.data || response.data || [];
+        // The API returns: { status: 1, message: "...", data: [{id, countryName, countryCode, ...}] }
+        const apiData = response.data?.data || [];
         
-        if (Array.isArray(fetchedCountries) && fetchedCountries.length > 0) {
-          console.log('✅ Using API countries');
-          setCountries(fetchedCountries);
+        if (Array.isArray(apiData) && apiData.length > 0) {
+          // Map countryName -> name
+          const transformedCountries: Country[] = apiData.map((item: any) => ({
+            id: item.id,
+            name: item.countryName,
+            countryCode: item.countryCode,
+            dialing_code: item.dialing_code,
+          }));
+          
+          console.log('✅ Using API countries:', transformedCountries);
+          setCountries(transformedCountries);
         } else {
           console.warn('⚠️ Using fallback countries');
           setCountries(FALLBACK_COUNTRIES);
@@ -169,7 +148,6 @@ function RegisterContent() {
     }
   }, [searchParams, setValue]);
 
-  // ✅ UPDATED: onSubmit now redirects to verification instead of dashboard
   const onSubmit = async (data: RegisterFormData) => {
     console.log('📋 Form data from React Hook Form:', data);
     console.log('👤 user_type value:', data.user_type);
@@ -179,73 +157,102 @@ function RegisterContent() {
     const result = await register(data);
 
     if (result.success) {
-      toast.success('Account created successfully! Please verify your email.');
+      toast.success('Registration successful! Please check your email to verify your account.');
       
-      // ✅ NEW: Redirect to email verification instead of dashboard
-      router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
+      // Redirect to verification page with email
+      router.push(`/auth/verify-email?email=${encodeURIComponent(data.email)}`);
     } else {
-      const errorMessage = result.error?.response?.data?.message || 
-                          result.error?.message || 
-                          'Registration failed';
-      toast.error(errorMessage);
-      console.error('Registration error:', result.error);
+      toast.error(result.error || 'Registration failed. Please try again.');
     }
   };
 
   return (
     <PublicRoute>
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-2xl w-full">
-          {/* Header Section */}
-          <div className="text-center mb-8">
-            <Link href="/" className="inline-block mb-6">
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                Talents You Need
-              </h1>
-            </Link>
-            <div className="flex items-center justify-center gap-2 mb-3">
-              <Sparkles className="h-6 w-6 text-indigo-600" />
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Create Your Account
-              </h2>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          {/* Header */}
+          <div className="text-center">
+            <div className="flex justify-center">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl blur-xl opacity-30 animate-pulse"></div>
+                <div className="relative bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-xl">
+                  <Sparkles className="h-12 w-12 text-blue-600 dark:text-blue-400" />
+                </div>
+              </div>
             </div>
-            <p className="text-gray-600 dark:text-gray-400">
-              Join thousands of talents and recruiters worldwide
+            <h2 className="mt-6 text-4xl font-extrabold text-gray-900 dark:text-white bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+              Create your account
+            </h2>
+            <p className="mt-3 text-base text-gray-600 dark:text-gray-400">
+              Join our community of talented professionals
             </p>
           </div>
 
-          {/* Main Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 backdrop-blur-sm border border-gray-100 dark:border-gray-700">
-            {/* User Type Toggle */}
-            <div className="grid grid-cols-2 gap-4 mb-8">
-              <button
-                type="button"
-                onClick={() => setValue('user_type', 'talent')}
-                className={`flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-semibold transition-all duration-200 ${
-                  userType === 'talent'
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-105'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-              >
-                <User className="h-5 w-5" />
-                I'm a Talent
-              </button>
-              <button
-                type="button"
-                onClick={() => setValue('user_type', 'recruiter')}
-                className={`flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-semibold transition-all duration-200 ${
-                  userType === 'recruiter'
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-105'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-              >
-                <Briefcase className="h-5 w-5" />
-                I'm a Recruiter
-              </button>
-            </div>
-
-            {/* Form */}
+          {/* Form */}
+          <div className="bg-white dark:bg-gray-800 py-8 px-6 shadow-2xl rounded-2xl border border-gray-200 dark:border-gray-700">
             <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+              {/* User Type Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                  I want to register as
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setValue('user_type', 'talent')}
+                    className={`relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                      userType === 'talent'
+                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                        : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                    }`}
+                  >
+                    <Briefcase className={`h-8 w-8 mb-2 ${
+                      userType === 'talent' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'
+                    }`} />
+                    <span className={`text-sm font-medium ${
+                      userType === 'talent' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
+                    }`}>
+                      Talent
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">Find opportunities</span>
+                    {userType === 'talent' && (
+                      <div className="absolute top-2 right-2 w-5 h-5 bg-blue-600 dark:bg-blue-400 rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setValue('user_type', 'recruiter')}
+                    className={`relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                      userType === 'recruiter'
+                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                        : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                    }`}
+                  >
+                    <User className={`h-8 w-8 mb-2 ${
+                      userType === 'recruiter' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'
+                    }`} />
+                    <span className={`text-sm font-medium ${
+                      userType === 'recruiter' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
+                    }`}>
+                      Recruiter
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">Hire talent</span>
+                    {userType === 'recruiter' && (
+                      <div className="absolute top-2 right-2 w-5 h-5 bg-blue-600 dark:bg-blue-400 rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                </div>
+              </div>
+
               {/* Name Fields */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
@@ -316,10 +323,10 @@ function RegisterContent() {
                 )}
               </div>
 
-              {/* ✅ NEW: Country Field */}
+              {/* Country - REQUIRED FIELD */}
               <div>
                 <label htmlFor="country_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Country
+                  Country <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -333,8 +340,8 @@ function RegisterContent() {
                   >
                     <option value="">Select your country...</option>
                     {countries.map((country) => (
-                      <option key={country.id} value={country.id}>
-                        {country.name}
+                      <option key={`country-${country.id}`} value={country.id}>
+                        {country.name} ({country.dialing_code})
                       </option>
                     ))}
                   </select>
@@ -428,7 +435,7 @@ function RegisterContent() {
                     >
                       <option value="">Select a category...</option>
                       {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
+                        <option key={`category-${category.id}`} value={category.id}>
                           {category.name}
                         </option>
                       ))}
@@ -547,7 +554,6 @@ function RegisterContent() {
   );
 }
 
-// ✅ STEP 2: Create wrapper with Suspense
 export default function RegisterPage() {
   return (
     <Suspense fallback={
