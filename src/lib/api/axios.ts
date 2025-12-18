@@ -74,8 +74,17 @@ api.interceptors.response.use(
         case 403:
           // Forbidden - permission issue, NOT auth issue
           console.log('🚫 403 Forbidden on:', url);
-          console.log('💡 You are authenticated but lack permission for this resource');
-          break;
+            // ✅ Check if this is an email verification issue
+            if (error.response.data?.requires_verification) {
+              console.log('📧 403 is due to unverified email - NOT clearing auth');
+              console.log('💡 Frontend will handle verification redirect');
+            } else {
+              console.log('💡 You are authenticated but lack permission for this resource');
+            }
+            break;
+          
+          // console.log('💡 You are authenticated but lack permission for this resource');
+          // break;
 
         case 404:
           // Not found

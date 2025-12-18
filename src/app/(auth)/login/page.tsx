@@ -56,12 +56,14 @@ export default function LoginPage() {
         router.push('/dashboard');
       }
     } else {
-      // ✅ ENHANCED: Handle email verification redirect with automatic OTP resend
+      // ✅ Access error.response directly from the error object
       if (result.error?.response?.status === 403) {
         const errorData = result.error.response.data;
         
+        console.log('❌ 403 Error Data:', errorData);
+        
         // Check if email verification is required
-        if (errorData.requires_verification) {
+        if (errorData?.requires_verification) {
           console.log('📧 Email not verified, automatically sending OTP...');
           
           // Show loading state
@@ -69,7 +71,9 @@ export default function LoginPage() {
           
           try {
             // ✅ AUTOMATIC OTP RESEND
-            await verificationApi.resendOtp({ email: data.email });
+            console.log('📤 Calling verificationApi.resendOtp...');
+            const otpResponse = await verificationApi.resendOtp({ email: data.email });
+            console.log('✅ OTP Response:', otpResponse);
             
             toast.success('Verification code sent! Check your email.', {
               duration: 5000,
@@ -77,26 +81,24 @@ export default function LoginPage() {
             
             console.log('✅ OTP sent successfully, redirecting to verification page...');
             
-            // ✅ REDIRECT TO VERIFICATION PAGE
+            // ✅ CORRECT PATH: Route groups (auth) don't appear in URL
             setTimeout(() => {
-              router.push(
-                `/auth/verify-email?email=${encodeURIComponent(data.email)}`
-              );
-            }, 1000); // Small delay to show the success message
+              router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
+            }, 1000);
             
           } catch (otpError: any) {
             console.error('❌ Failed to send OTP:', otpError);
+            console.error('❌ OTP Error Response:', otpError.response?.data);
+            console.error('❌ OTP Error Status:', otpError.response?.status);
             
             // Even if OTP resend fails, still redirect to verification page
             // User can manually request OTP there
-            toast.warning('Please verify your email to continue', {
+            toast.warning('Please verify your email. You can request a code on the next page.', {
               duration: 4000,
             });
             
             setTimeout(() => {
-              router.push(
-                `/auth/verify-email?email=${encodeURIComponent(data.email)}`
-              );
+              router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
             }, 1000);
           } finally {
             setIsResendingOtp(false);
@@ -106,7 +108,7 @@ export default function LoginPage() {
         }
         
         // Other 403 errors (suspended, banned, etc.)
-        toast.error(errorData.message || 'Access denied');
+        toast.error(errorData?.message || 'Access denied');
       } else {
         // Handle other login errors
         const errorMessage = result.error?.response?.data?.message || 

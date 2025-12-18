@@ -100,6 +100,9 @@ export const useAuthStore = create<AuthStore>()(
           return { success: true };
         } catch (error: any) {
           console.error('❌ AUTH STORE: Login failed:', error);
+          
+          // ✅ CRITICAL FIX: Return the complete Axios error object
+          // This preserves error.response.data and error.response.status
           const errorMessage = 
             error.response?.data?.message || 
             error.message ||
@@ -115,7 +118,7 @@ export const useAuthStore = create<AuthStore>()(
 
           return {
             success: false,
-            error: error.response?.data || errorMessage,
+            error: error, // ✅ Return the full error object, not just the message
           };
         }
       },
