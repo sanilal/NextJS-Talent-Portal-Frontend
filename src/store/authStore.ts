@@ -9,12 +9,13 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  validationErrors: Record<string, string[]> | null; // ✅ ADDED: Store validation errors
   _hasHydrated: boolean;
 }
 
 interface AuthActions {
   login: (credentials: LoginCredentials) => Promise<{ success: boolean; error?: any }>;
-  register: (userData: RegisterData) => Promise<{ success: boolean; error?: any }>;
+  register: (userData: RegisterData) => Promise<{ success: boolean; error?: any; validationErrors?: any }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   updateUser: (user: User) => void;
@@ -28,7 +29,6 @@ type AuthStore = AuthState & AuthActions;
 // ✅ Helper function to normalize API user response to match User type
 const normalizeUser = (apiUser: any): User => {
   return {
-    // ✅ Convert string id to number if needed
     id: typeof apiUser.id === 'string' ? parseInt(apiUser.id) : apiUser.id,
     first_name: apiUser.first_name,
     last_name: apiUser.last_name,
@@ -40,7 +40,6 @@ const normalizeUser = (apiUser: any): User => {
     date_of_birth: apiUser.date_of_birth,
     gender: apiUser.gender,
     avatar_url: apiUser.avatar_url,
-    // ✅ Provide defaults for required fields that might be missing
     is_verified: apiUser.is_verified ?? apiUser.email_verified_at !== null,
     is_active: apiUser.is_active ?? true,
     created_at: apiUser.created_at || new Date().toISOString(),
@@ -50,13 +49,14 @@ const normalizeUser = (apiUser: any): User => {
 
 export const useAuthStore = create<AuthStore>()(
   persist(
-    (set, _get) => ({  // ✅ Renamed 'get' to '_get' to fix ESLint warning
+    (set, _get) => ({
       // Initial State
       user: null,
       token: null,
       isAuthenticated: false,
       isLoading: true,
       error: null,
+      validationErrors: null, // ✅ ADDED
       _hasHydrated: false,
 
       // Actions
@@ -66,9 +66,9 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       login: async (credentials) => {
-        console.log('🔐 AUTH STORE: login() called');
+        console.log('📝 AUTH STORE: login() called');
         console.log('📧 Email:', credentials.email);
-        set({ isLoading: true, error: null });
+        set({ isLoading: true, error: null, validationErrors: null });
         
         try {
           const response = await authApi.login(credentials.email, credentials.password);
@@ -78,7 +78,6 @@ export const useAuthStore = create<AuthStore>()(
           console.log('👤 User:', apiUser?.email);
           console.log('🔑 Token:', token ? 'EXISTS' : 'MISSING');
 
-          // ✅ Normalize the user data to match User type
           const user = normalizeUser(apiUser);
 
           // Save token to localStorage explicitly
@@ -94,6 +93,7 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: true,
             isLoading: false,
             error: null,
+            validationErrors: null,
           });
 
           console.log('✅ AUTH STORE: login() complete');
@@ -101,8 +101,6 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error: any) {
           console.error('❌ AUTH STORE: Login failed:', error);
           
-          // ✅ CRITICAL FIX: Return the complete Axios error object
-          // This preserves error.response.data and error.response.status
           const errorMessage = 
             error.response?.data?.message || 
             error.message ||
@@ -114,18 +112,20 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: false,
             user: null,
             token: null,
+            validationErrors: null,
           });
 
           return {
             success: false,
-            error: error, // ✅ Return the full error object, not just the message
+            error: error,
           };
         }
       },
 
       register: async (userData) => {
         console.log('📝 AUTH STORE: register() called');
-        set({ isLoading: true, error: null });
+        console.log('📋 Registration data:', userData);
+        set({ isLoading: true, error: null, validationErrors: null });
 
         try {
           const response = await authApi.register(userData);
@@ -133,7 +133,6 @@ export const useAuthStore = create<AuthStore>()(
 
           console.log('✅ AUTH STORE: Register API success');
 
-          // ✅ Normalize the user data to match User type
           const user = normalizeUser(apiUser);
 
           // Save token to localStorage explicitly
@@ -148,19 +147,34 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: true,
             isLoading: false,
             error: null,
+            validationErrors: null,
           });
 
           console.log('✅ AUTH STORE: register() complete');
           return { success: true };
         } catch (error: any) {
           console.error('❌ AUTH STORE: Register failed:', error);
+          
+          // ✅ IMPROVED: Extract and display all validation errors
           let errorMessage = 'Registration failed. Please try again.';
+          let validationErrors = null;
           
           if (error.response?.data?.errors) {
-            const errors = error.response.data.errors;
-            const firstErrorKey = Object.keys(errors)[0];
-            const firstError = errors[firstErrorKey];
-            errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+            // Laravel validation errors format: { field: ["error1", "error2"] }
+            validationErrors = error.response.data.errors;
+            
+            // Create a user-friendly error message from validation errors
+            const errorMessages: string[] = [];
+            Object.entries(validationErrors).forEach(([field, messages]) => {
+              if (Array.isArray(messages)) {
+                errorMessages.push(...messages);
+              }
+            });
+            
+            errorMessage = errorMessages.join(' ');
+            
+            console.log('🚨 Validation errors:', validationErrors);
+            console.log('📝 Error message:', errorMessage);
           } else if (error.response?.data?.message) {
             errorMessage = error.response.data.message;
           } else if (error.message) {
@@ -170,6 +184,7 @@ export const useAuthStore = create<AuthStore>()(
           set({
             isLoading: false,
             error: errorMessage,
+            validationErrors: validationErrors, // ✅ Store validation errors
             isAuthenticated: false,
             user: null,
             token: null,
@@ -178,13 +193,14 @@ export const useAuthStore = create<AuthStore>()(
           return {
             success: false,
             error: error.response?.data || { message: errorMessage },
+            validationErrors: validationErrors, // ✅ Return validation errors
           };
         }
       },
 
       logout: async () => {
         console.log('🚪 AUTH STORE: logout() called');
-        console.trace('📍 Logout called from:');
+        console.trace('🔍 Logout called from:');
         
         try {
           await authApi.logout();
@@ -205,6 +221,7 @@ export const useAuthStore = create<AuthStore>()(
             token: null,
             isAuthenticated: false,
             error: null,
+            validationErrors: null,
             isLoading: false,
           });
           
@@ -262,7 +279,6 @@ export const useAuthStore = create<AuthStore>()(
           
           console.log('✅ Backend auth verification succeeded');
           
-          // ✅ Normalize the user data
           const user = normalizeUser(apiUser);
           
           set({
@@ -301,7 +317,7 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       clearError: () => {
-        set({ error: null });
+        set({ error: null, validationErrors: null });
       },
 
       setLoading: (loading) => {
@@ -344,7 +360,6 @@ export const useAuthStore = create<AuthStore>()(
               isAuthenticated: state.isAuthenticated,
             });
 
-            // 🔥 CRITICAL FIX: If we have user and token, ensure isAuthenticated is true
             if (state.user && state.token) {
               console.log('✅ Valid auth data found, setting isAuthenticated = true');
               
@@ -354,7 +369,6 @@ export const useAuthStore = create<AuthStore>()(
                 localStorage.setItem('user', JSON.stringify(state.user));
               }
               
-              // Update the state to ensure isAuthenticated is true
               state.isAuthenticated = true;
             } else {
               console.log('⚠️ No valid auth data found during rehydration');
@@ -375,4 +389,5 @@ export const selectUser = (state: AuthStore) => state.user;
 export const selectIsAuthenticated = (state: AuthStore) => state.isAuthenticated;
 export const selectIsLoading = (state: AuthStore) => state.isLoading;
 export const selectError = (state: AuthStore) => state.error;
+export const selectValidationErrors = (state: AuthStore) => state.validationErrors; // ✅ ADDED
 export const selectHasHydrated = (state: AuthStore) => state._hasHydrated;
