@@ -28,6 +28,7 @@ const profileSchema = z.object({
   professional_title: z.string().optional(),
   bio: z.string().optional(),
   phone: z.string().optional(),
+  date_of_birth: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
   country: z.string().optional(),
@@ -86,6 +87,9 @@ export default function EditProfilePage() {
       professional_title: profile.professional_title || '',
       bio: profile.bio || '',
       phone: user?.phone || '',
+      date_of_birth: user?.date_of_birth 
+      ? new Date(user.date_of_birth).toISOString().split('T')[0] 
+      : '',
       city: profile.city || '',
       state: profile.state || '',
       country: profile.country || '',
@@ -357,7 +361,7 @@ export default function EditProfilePage() {
                     className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
                   />
                 </div>
-
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Phone Number
@@ -368,6 +372,21 @@ export default function EditProfilePage() {
                     className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
+
+                <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Date of Birth
+                </label>
+                <input
+                  {...form.register('date_of_birth')}
+                  type="date"
+                  max={new Date().toISOString().split('T')[0]}
+                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              </div>
+
+                
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
@@ -429,10 +448,11 @@ export default function EditProfilePage() {
                       {...form.register('currency')}
                       className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
+                      <option value="AED">AED (د.إ)</option>
                       <option value="USD">USD ($)</option>
                       <option value="EUR">EUR (€)</option>
                       <option value="GBP">GBP (£)</option>
-                      <option value="AED">AED (د.إ)</option>
+                      <option value="INR">INR (₹)</option>
                     </select>
                   </div>
                 </div>
@@ -658,6 +678,7 @@ export default function EditProfilePage() {
             type="submit"
             isLoading={updateProfileMutation.isPending}
             disabled={updateProfileMutation.isPending}
+            className="bg-green-600 text-white border border-green-700 hover:bg-green-700"
           >
             <Save className="h-4 w-4 mr-2" />
             Save Changes
