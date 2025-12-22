@@ -16,17 +16,17 @@ export interface User {
   avatar_url?: string;
   is_verified: boolean;
   is_active: boolean;
-  is_email_verified: boolean; // ✅ Added for new flow
+  is_email_verified: boolean;
   created_at: string;
   updated_at: string;
-  // ✅ NEW: Country support
+  // Country support
   country_id?: number;
   country?: Country;
   state_id?: number;
   state?: State;
 }
 
-// ✅ NEW: Country & State Types
+// Country & State Types
 export interface Country {
   id: number;
   name: string;
@@ -62,25 +62,25 @@ export interface RegisterData {
   password_confirmation: string;
   user_type: 'talent' | 'recruiter';
   phone?: string;
-  country_id?: number; // ✅ Added for new registration flow
+  country_id?: number;
   date_of_birth?: string;
   gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say' | '';
 }
 
-// ✅ NEW: Email Verification Types
+// Email Verification Types
 export interface LoginResponse {
   token: string;
   token_type: string;
   user: User;
   message: string;
-  requires_verification?: boolean; // ✅ For unverified email redirect
+  requires_verification?: boolean;
 }
 
 export interface RegisterResponse {
   message: string;
   user?: User;
   token?: string;
-  requires_verification?: boolean; // ✅ Indicates email verification needed
+  requires_verification?: boolean;
 }
 
 export interface VerifyEmailData {
@@ -106,11 +106,13 @@ export interface ResendOTPResponse {
 // ============================================
 
 export interface Skill {
-  id: number;
+  id: string; // ✅ FIXED: Changed from number to string (UUID)
   name: string;
   slug: string;
-  category_id?: number;
+  category_id?: string; // ✅ FIXED: Changed from number to string (UUID)
   category?: Category;
+  subcategory_id?: string;
+  subcategory?: Subcategory;
   description?: string;
   icon?: string;
   is_featured: boolean;
@@ -123,10 +125,19 @@ export interface Skill {
   deleted_at?: string;
 }
 
+export interface Subcategory {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  icon?: string;
+  category_id?: string;
+}
+
 export interface TalentSkill {
-  id: number;
-  talent_profile_id: number;
-  skill_id: number;
+  id: string; // ✅ FIXED: Changed from number to string (UUID)
+  talent_profile_id: string; // ✅ FIXED: Changed from number to string (UUID)
+  skill_id: string; // ✅ FIXED: Changed from number to string (UUID)
   skill?: Skill;
   description?: string;
   proficiency_level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
@@ -153,13 +164,13 @@ export interface TalentSkill {
 // ============================================
 
 export interface TalentProfile {
-  id: number;
-  user_id: number;
+  id: string; // ✅ FIXED: Changed from number to string (UUID)
+  user_id: string; // ✅ FIXED: Changed from number to string (UUID)
   user?: User;
-  primary_category_id?: number;
+  primary_category_id?: string; // ✅ FIXED: Changed from number to string (UUID)
   professional_title?: string;
   summary?: string;
-  experience_level: 'entry' | 'junior' | 'intermediate' | 'senior' | 'expert';
+  experience_level: 'entry' | 'intermediate' | 'advanced' | 'expert'; // ✅ FIXED: Removed 'junior' and 'senior'
   hourly_rate_min?: number;
   hourly_rate_max?: number;
   currency: string;
@@ -196,11 +207,13 @@ export interface RecruiterProfile {
   company_website?: string;
   company_size?: string;
   industry?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Experience {
-  id: number;
-  talent_profile_id: number;
+  id: string; // ✅ FIXED: Changed from number to string (UUID)
+  talent_profile_id: string; // ✅ FIXED: Changed from number to string (UUID)
   title: string;
   company: string;
   location?: string;
@@ -213,8 +226,8 @@ export interface Experience {
 }
 
 export interface Education {
-  id: number;
-  talent_profile_id: number;
+  id: string; // ✅ FIXED: Changed from number to string (UUID)
+  talent_profile_id: string; // ✅ FIXED: Changed from number to string (UUID)
   degree: string;
   field_of_study: string;
   institution: string;
@@ -228,8 +241,8 @@ export interface Education {
 }
 
 export interface Portfolio {
-  id: number;
-  talent_profile_id: number;
+  id: string; // ✅ FIXED: Changed from number to string (UUID)
+  talent_profile_id: string; // ✅ FIXED: Changed from number to string (UUID)
   title: string;
   description?: string;
   url?: string;
@@ -249,9 +262,9 @@ export interface Portfolio {
 // ============================================
 
 export interface Review {
-  id: number;
-  talent_profile_id: number;
-  reviewer_id: number;
+  id: string; // ✅ FIXED: Changed from number to string (UUID)
+  talent_profile_id: string; // ✅ FIXED: Changed from number to string (UUID)
+  reviewer_id: string; // ✅ FIXED: Changed from number to string (UUID)
   rating: number;
   comment?: string;
   is_approved: boolean;
@@ -277,48 +290,116 @@ export interface TalentStats {
 // ============================================
 
 export interface Project {
-  id: number;
+  id: string; // ✅ FIXED: Changed from number to string (UUID)
+  recruiter_profile_id: string; // ✅ FIXED: Added
+  posted_by: string; // ✅ FIXED: Added
   title: string;
+  slug: string;
   description: string;
-  status: 'draft' | 'published' | 'in_progress' | 'completed' | 'cancelled' | 'closed';
+  requirements?: string[];
+  responsibilities?: string[];
+  deliverables?: string[];
+  
+  // ✅ FIXED: Project type fields
+  project_type_id: number; // Film/TV type (Feature Film, TV Series, etc.)
+  project_type?: ProjectType;
+  
+  // ✅ FIXED: Work and budget fields
+  work_type: 'on_site' | 'remote' | 'hybrid'; // Changed from is_remote boolean
+  budget_type: 'fixed' | 'hourly' | 'daily' | 'negotiable'; // Renamed from project_type
   budget_min?: number;
   budget_max?: number;
   budget_currency: string;
-  duration?: number;
-  duration_unit?: 'hours' | 'days' | 'weeks' | 'months';
-  location?: string;
-  is_remote: boolean;
-  experience_level: 'entry' | 'junior' | 'intermediate' | 'senior' | 'expert';
-  project_type: 'fixed' | 'hourly' | 'contract' | 'full-time';
-  start_date?: string;
-  end_date?: string;
+  budget_negotiable: boolean;
+  
+  // Dates and duration
+  duration?: number; // in days
+  project_start_date?: string; // ✅ FIXED: Renamed from start_date
+  project_end_date?: string; // ✅ FIXED: Renamed from end_date
   application_deadline?: string;
-  recruiter_id: number;
-  recruiter?: User;
+  
+  // Location and requirements
+  location?: string;
+  experience_level: 'entry' | 'intermediate' | 'advanced' | 'expert'; // ✅ FIXED: Removed 'junior' and 'senior'
+  skills_required?: string[]; // Array of skill UUIDs
+  
+  // Metadata
+  positions_available: number;
+  status: 'draft' | 'published' | 'in_progress' | 'completed' | 'cancelled' | 'expired'; // ✅ FIXED: Changed 'closed' to 'expired'
+  visibility: 'public' | 'private' | 'invited_only';
+  urgency: 'low' | 'normal' | 'high' | 'urgent';
+  is_featured: boolean;
+  views_count: number;
+  applications_count: number;
+  
+  // Application requirements
+  requires_portfolio: boolean;
+  requires_demo_reel: boolean;
+  attachments?: string[];
+  application_questions?: string[];
+  
+  // Publishing
+  published_at?: string;
+  
+  // Category (for talent classification)
+  primary_category_id?: string; // ✅ FIXED: Renamed from category_id, changed to UUID
   category?: Category;
+  
+  // Relations
+  recruiter?: User;
+  recruiterProfile?: RecruiterProfile;
   skills?: Skill[];
-  applications_count?: number;
-  views_count?: number;
+  applications?: Application[];
+  
   created_at: string;
   updated_at: string;
+  deleted_at?: string;
 }
 
+export interface ProjectType {
+  id: number;
+  name: string;
+  projectTypeName: string;
+  postRequestTypes: string;
+  slug: string;
+  description: string | null;
+  icon: string | null;
+  orderType: number;
+  sort_order: number;
+  is_active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ✅ FIXED: Updated ProjectFormData to match new schema
 export interface ProjectFormData {
   title: string;
   description: string;
+  project_type_id: number; // ✅ REQUIRED: Film/TV type
+  primary_category_id?: string; // UUID for talent category
+  work_type?: 'on_site' | 'remote' | 'hybrid'; // ✅ Changed from is_remote
+  budget_type?: 'fixed' | 'hourly' | 'daily' | 'negotiable'; // ✅ Renamed from project_type
   budget_min?: number;
   budget_max?: number;
-  budget_currency: string;
-  duration?: number;
-  duration_unit?: string;
-  location?: string;
-  is_remote: boolean;
-  experience_level: string;
-  project_type: string;
-  start_date?: string;
+  budget_currency?: string; // Default: AED
+  budget_negotiable?: boolean;
+  duration?: number; // in days
+  project_start_date?: string; // ✅ Renamed from start_date
+  project_end_date?: string; // ✅ Renamed from end_date
   application_deadline?: string;
-  category_id?: number;
-  skill_ids?: number[];
+  location?: string;
+  experience_level?: 'entry' | 'intermediate' | 'advanced' | 'expert'; // ✅ Fixed options
+  skills_required?: string[]; // Array of skill UUIDs
+  requirements?: string;
+  responsibilities?: string;
+  deliverables?: string;
+  positions_available?: number;
+  visibility?: 'public' | 'private' | 'invited_only';
+  urgency?: 'low' | 'normal' | 'high' | 'urgent';
+  is_featured?: boolean;
+  requires_portfolio?: boolean;
+  requires_demo_reel?: boolean;
+  application_questions?: string[];
 }
 
 // ============================================
@@ -326,9 +407,9 @@ export interface ProjectFormData {
 // ============================================
 
 export interface Application {
-  id: number;
-  project_id: number;
-  talent_profile_id: number;
+  id: string; // ✅ FIXED: Changed from number to string (UUID)
+  project_id: string; // ✅ FIXED: Changed from number to string (UUID)
+  talent_profile_id: string; // ✅ FIXED: Changed from number to string (UUID)
   status: 'pending' | 'reviewing' | 'shortlisted' | 'accepted' | 'rejected' | 'withdrawn';
   cover_letter?: string;
   proposed_rate?: number;
@@ -342,9 +423,9 @@ export interface Application {
 }
 
 export interface ApplicationNote {
-  id: number;
-  application_id: number;
-  user_id: number;
+  id: string; // ✅ FIXED: Changed from number to string (UUID)
+  application_id: string; // ✅ FIXED: Changed from number to string (UUID)
+  user_id: string; // ✅ FIXED: Changed from number to string (UUID)
   note: string;
   created_at: string;
 }
@@ -354,14 +435,18 @@ export interface ApplicationNote {
 // ============================================
 
 export interface Category {
-  id: number;
+  id: string; // ✅ FIXED: Changed from number to string (UUID)
   name: string;
+  categoryName?: string; // Backend compatibility
   slug: string;
   description?: string;
-  parent_id?: number;
+  parent_id?: string; // ✅ FIXED: Changed from number to string (UUID)
   icon?: string;
+  color?: string;
   talents_count?: number;
   is_active: boolean;
+  sort_order?: number;
+  subcategories?: Subcategory[];
   created_at: string;
   updated_at: string;
 }
@@ -372,9 +457,9 @@ export interface Category {
 
 export interface TalentFilters {
   search?: string;
-  skills?: number[];
-  skill_ids?: number[];
-  category_id?: number;
+  skills?: string[]; // ✅ FIXED: Changed from number[] to string[] (UUIDs)
+  skill_ids?: string[]; // ✅ FIXED: Changed from number[] to string[] (UUIDs)
+  category_id?: string; // ✅ FIXED: Changed from number to string (UUID)
   experience_level?: string | string[];
   availability_status?: string | string[];
   availability_types?: string[];
@@ -399,11 +484,11 @@ export interface SearchFilters {
   experience_level?: string[];
   availability?: string[];
   location?: string[];
-  is_remote?: boolean;
+  work_type?: 'on_site' | 'remote' | 'hybrid'; // ✅ FIXED: Changed from is_remote
   hourly_rate_min?: number;
   hourly_rate_max?: number;
-  skills?: number[];
-  category_id?: number;
+  skills?: string[]; // ✅ FIXED: Changed from number[] to string[] (UUIDs)
+  category_id?: string; // ✅ FIXED: Changed from number to string (UUID)
 }
 
 export interface SearchParams {
@@ -483,7 +568,7 @@ export interface TalentListResponse {
 // ============================================
 
 export interface CreateTalentSkillPayload {
-  skill_id: number;
+  skill_id: string; // ✅ FIXED: Changed from number to string (UUID)
   description?: string;
   proficiency_level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
   years_of_experience?: number;
@@ -506,7 +591,7 @@ export interface UpdateTalentSkillPayload extends Partial<CreateTalentSkillPaylo
 
 export interface ReorderSkillsPayload {
   skills: Array<{
-    id: number;
+    id: string; // ✅ FIXED: Changed from number to string (UUID)
     display_order: number;
   }>;
 }
@@ -516,9 +601,9 @@ export interface ReorderSkillsPayload {
 // ============================================
 
 export interface Message {
-  id: number;
-  sender_id: number;
-  receiver_id: number;
+  id: string; // ✅ FIXED: Changed from number to string (UUID)
+  sender_id: string; // ✅ FIXED: Changed from number to string (UUID)
+  receiver_id: string; // ✅ FIXED: Changed from number to string (UUID)
   message: string;
   is_read: boolean;
   created_at: string;

@@ -11,24 +11,25 @@ import { projectsAPI } from '@/lib/api/projects';
 import api from '@/lib/api/axios';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { ProjectFormData, Skill, Category } from '@/types';
+import type { ProjectFormData, Skill, ProjectType } from '@/types';
 
 const projectSchema = z.object({
   title: z.string().min(10, 'Title must be at least 10 characters'),
   description: z.string().min(50, 'Description must be at least 50 characters'),
+  project_type_id: z.number().min(1, 'Please select a project type'),
   budget_min: z.number().min(0).optional(),
   budget_max: z.number().min(0).optional(),
-  budget_currency: z.string(),
+  budget_currency: z.string().default('AED'),
+  budget_type: z.enum(['fixed', 'hourly', 'daily', 'negotiable']).optional(),
   duration: z.number().min(1).optional(),
-  duration_unit: z.enum(['hours', 'days', 'weeks', 'months']).optional(),
   location: z.string().optional(),
-  is_remote: z.boolean(),
-  experience_level: z.enum(['entry', 'junior', 'intermediate', 'senior', 'expert']),
-  project_type: z.enum(['fixed', 'hourly', 'contract', 'full-time']),
-  start_date: z.string().optional(),
+  work_type: z.enum(['on_site', 'remote', 'hybrid']).optional(),
+  experience_level: z.enum(['entry', 'intermediate', 'advanced', 'expert']).optional(),
   application_deadline: z.string().optional(),
-  category_id: z.number().optional(),
-  skill_ids: z.array(z.number()).optional(),
+  project_start_date: z.string().optional(),
+  project_end_date: z.string().optional(),
+  primary_category_id: z.string().optional(), // UUID for talent category
+  skills_required: z.array(z.string()).optional(), // Array of skill UUIDs
 });
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
@@ -45,17 +46,17 @@ export default function CreateProjectPage() {
     },
   });
 
-  // Fetch categories
-  const { data: categoriesData } = useQuery({
-    queryKey: ['categories'],
+  // Fetch project types (changed from categories)
+  const { data: projectTypesData } = useQuery({
+    queryKey: ['projectTypes'],
     queryFn: async () => {
-      const response = await api.get('/public/categories');
+      const response = await api.get('/public/project-types');
       return response.data;
     },
   });
 
   const skills = skillsData?.data || [];
-  const categories = categoriesData?.data || [];
+  const projectTypes = projectTypesData?.data || [];
 
   const {
     register,
@@ -65,10 +66,10 @@ export default function CreateProjectPage() {
   } = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
     defaultValues: {
-      budget_currency: 'USD',
-      is_remote: false,
+      budget_currency: 'AED',
+      work_type: 'on_site',
       experience_level: 'intermediate',
-      project_type: 'fixed',
+      budget_type: 'fixed',
     },
   });
 
@@ -88,7 +89,7 @@ export default function CreateProjectPage() {
     createMutation.mutate(data as ProjectFormData);
   };
 
-  const isRemote = watch('is_remote');
+  const workType = watch('work_type');
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -98,20 +99,14 @@ export default function CreateProjectPage() {
           variant="ghost"
           onClick={() => router.back()}
         >
-          <ArrowLeft className="h-4 w-4 mr-2" />
+          <ArrowLeft className="w-4 h-4 mr-2" />
           Back
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Create New Project
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Post a project and find the perfect talent
-          </p>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Create New Project
+        </h1>
       </div>
 
-      {/* Form */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Basic Information */}
         <Card>
@@ -125,9 +120,9 @@ export default function CreateProjectPage() {
                 Project Title *
               </label>
               <input
-                {...register('title')}
                 type="text"
-                placeholder="e.g., Full-stack Developer for E-commerce Platform"
+                {...register('title')}
+                placeholder="e.g., Lead Actor for Feature Film Drama"
                 className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
               {errors.title && (
@@ -138,12 +133,12 @@ export default function CreateProjectPage() {
             {/* Description */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Project Description *
+                Description *
               </label>
               <textarea
                 {...register('description')}
                 rows={6}
-                placeholder="Describe your project in detail..."
+                placeholder="Provide detailed information about the project, requirements, and expectations..."
                 className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
               {errors.description && (
@@ -151,22 +146,25 @@ export default function CreateProjectPage() {
               )}
             </div>
 
-            {/* Category */}
+            {/* Project Type (changed from Category) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Category
+                Project Type *
               </label>
               <select
-                {...register('category_id', { valueAsNumber: true })}
+                {...register('project_type_id', { valueAsNumber: true })}
                 className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                <option value="">Select a category</option>
-                {categories.map((category: Category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
+                <option value="">Select a project type</option>
+                {projectTypes.map((type: ProjectType) => (
+                  <option key={type.id} value={type.id}>
+                    {type.icon && `${type.icon} `}{type.name}
                   </option>
                 ))}
               </select>
+              {errors.project_type_id && (
+                <p className="mt-1 text-sm text-red-600">{errors.project_type_id.message}</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -181,36 +179,49 @@ export default function CreateProjectPage() {
               {/* Experience Level */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Experience Level *
+                  Experience Level
                 </label>
                 <select
                   {...register('experience_level')}
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="entry">Entry Level</option>
-                  <option value="junior">Junior</option>
                   <option value="intermediate">Intermediate</option>
-                  <option value="senior">Senior</option>
+                  <option value="advanced">Advanced</option>
                   <option value="expert">Expert</option>
                 </select>
               </div>
 
-              {/* Project Type */}
+              {/* Work Type (changed from is_remote boolean) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Project Type *
+                  Work Type
                 </label>
                 <select
-                  {...register('project_type')}
+                  {...register('work_type')}
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
-                  <option value="fixed">Fixed Price</option>
-                  <option value="hourly">Hourly Rate</option>
-                  <option value="contract">Contract</option>
-                  <option value="full-time">Full-time</option>
+                  <option value="on_site">On-Site</option>
+                  <option value="remote">Remote</option>
+                  <option value="hybrid">Hybrid</option>
                 </select>
               </div>
             </div>
+
+            {/* Location */}
+            {workType !== 'remote' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  {...register('location')}
+                  placeholder="e.g., Dubai Media City, UAE"
+                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            )}
 
             {/* Budget */}
             <div>
@@ -219,14 +230,14 @@ export default function CreateProjectPage() {
               </label>
               <div className="grid grid-cols-3 gap-4">
                 <input
-                  {...register('budget_min', { valueAsNumber: true })}
                   type="number"
+                  {...register('budget_min', { valueAsNumber: true })}
                   placeholder="Min"
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <input
-                  {...register('budget_max', { valueAsNumber: true })}
                   type="number"
+                  {...register('budget_max', { valueAsNumber: true })}
                   placeholder="Max"
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
@@ -242,39 +253,44 @@ export default function CreateProjectPage() {
               </div>
             </div>
 
+            {/* Budget Type (renamed from project_type) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Budget Type
+              </label>
+              <select
+                {...register('budget_type')}
+                className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="fixed">Fixed Price</option>
+                <option value="hourly">Hourly Rate</option>
+                <option value="daily">Daily Rate</option>
+                <option value="negotiable">Negotiable</option>
+              </select>
+            </div>
+
             {/* Duration */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Duration
+                Duration (in days)
               </label>
-              <div className="grid grid-cols-2 gap-4">
-                <input
-                  {...register('duration', { valueAsNumber: true })}
-                  type="number"
-                  placeholder="Duration"
-                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-                <select
-                  {...register('duration_unit')}
-                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="hours">Hours</option>
-                  <option value="days">Days</option>
-                  <option value="weeks">Weeks</option>
-                  <option value="months">Months</option>
-                </select>
-              </div>
+              <input
+                type="number"
+                {...register('duration', { valueAsNumber: true })}
+                placeholder="e.g., 30"
+                className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
             </div>
 
             {/* Dates */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Start Date
+                  Project Start Date
                 </label>
                 <input
-                  {...register('start_date')}
                   type="date"
+                  {...register('project_start_date')}
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
@@ -283,8 +299,8 @@ export default function CreateProjectPage() {
                   Application Deadline
                 </label>
                 <input
-                  {...register('application_deadline')}
                   type="date"
+                  {...register('application_deadline')}
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
@@ -292,71 +308,37 @@ export default function CreateProjectPage() {
           </CardContent>
         </Card>
 
-        {/* Location */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Location</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Remote Toggle */}
-            <div className="flex items-center gap-2">
-              <input
-                {...register('is_remote')}
-                type="checkbox"
-                id="is_remote"
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-              />
-              <label htmlFor="is_remote" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                This is a remote position
-              </label>
-            </div>
-
-            {/* Location Input */}
-            {!isRemote && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Location
-                </label>
-                <input
-                  {...register('location')}
-                  type="text"
-                  placeholder="e.g., New York, NY"
-                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Skills */}
+        {/* Required Skills */}
         <Card>
           <CardHeader>
             <CardTitle>Required Skills</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-96 overflow-y-auto">
-              {skills.map((skill: Skill) => (
-                <label
-                  key={skill.id}
-                  className="flex items-center gap-2 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    value={skill.id}
-                    {...register('skill_ids')}
-                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                  />
-                  <span className="text-sm text-gray-900 dark:text-white">
-                    {skill.name}
-                  </span>
-                </label>
-              ))}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Select Skills
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-60 overflow-y-auto p-2 border border-gray-300 dark:border-gray-600 rounded-lg">
+                {skills.map((skill: Skill) => (
+                  <label key={skill.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded">
+                    <input
+                      type="checkbox"
+                      value={skill.id}
+                      {...register('skills_required')}
+                      className="rounded border-gray-300 dark:border-gray-600"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      {skill.icon && `${skill.icon} `}{skill.name}
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Actions */}
-        <div className="flex items-center justify-end gap-4">
+        {/* Submit Button */}
+        <div className="flex justify-end gap-4">
           <Button
             type="button"
             variant="outline"
@@ -366,12 +348,16 @@ export default function CreateProjectPage() {
           </Button>
           <Button
             type="submit"
-            size="lg"
-            isLoading={createMutation.isPending}
             disabled={createMutation.isPending}
           >
-            <Save className="h-5 w-5 mr-2" />
-            Create Project
+            {createMutation.isPending ? (
+              <>Creating...</>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Create Project
+              </>
+            )}
           </Button>
         </div>
       </form>

@@ -143,7 +143,7 @@ function RegisterContent() {
     const result = await register(data);
 
     if (result.success) {
-      toast.success('Registration successful! Please check your email to verify your account.');
+      toast.success('Registration successful!');
      // router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
       router.push(`/login?email=${encodeURIComponent(data.email)}`);
     } else {
