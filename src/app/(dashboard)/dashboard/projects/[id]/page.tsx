@@ -29,13 +29,21 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
   const router = useRouter();
   const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
-  const projectId = parseInt(resolvedParams.id);
+  const projectId = resolvedParams.id;
 
   // Fetch project details
-  const { data: project, isLoading } = useQuery<Project>({
-    queryKey: ['project', projectId],
-    queryFn: () => projectsAPI.getProject(projectId),
-  });
+  const { data: response, isLoading, error } = useQuery({
+  queryKey: ['project', projectId],
+  queryFn: async () => {
+    console.log('🔍 Fetching project:', projectId);
+    const result = await projectsAPI.getRecruiterProject(projectId);  // ✅ Correct endpoint!
+    console.log('📦 API Response:', result);
+    return result;
+  },
+});
+
+// ✅ Extract project from response.data
+const project = response?.data;
 
   // Check if user has already applied
   const { data: hasApplied } = useQuery({
@@ -70,6 +78,23 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
     return (
       <div className="flex items-center justify-center min-h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+    if (error) {
+    console.error('❌ Error loading project:', error);
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+          Error Loading Project
+        </h2>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">
+          {(error as any)?.response?.data?.message || 'Failed to load project'}
+        </p>
+        <Button onClick={() => router.back()}>
+          Go Back
+        </Button>
       </div>
     );
   }
@@ -227,10 +252,21 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
                     Project Type
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">
-                    {project.project_type}
+
+                  <p className="text-sm text-gray-600 dark:text-gray-400 capitalize flex items-center gap-1">
+                    {project.project_type
+                      ? (
+                        <>
+                          <span role="img" aria-label={project.project_type.name}>
+                            {project.project_type.icon}
+                          </span>
+                          <span>{project.project_type.name}</span>
+                        </>
+                      )
+                      : 'N/A'}
                   </p>
                 </div>
+
               </div>
 
               {/* Experience Level */}
