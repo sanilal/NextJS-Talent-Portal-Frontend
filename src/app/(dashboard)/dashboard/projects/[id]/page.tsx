@@ -373,6 +373,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
           )}
 
           {/* Application Requirements */}
+          
           {(project.requires_portfolio || project.requires_demo_reel) && (
             <Card className="border-orange-200 dark:border-orange-900/20 bg-orange-50/50 dark:bg-orange-900/10">
               <CardHeader>

@@ -35,13 +35,16 @@ export default function ProjectsPage() {
       if (searchQuery) {
         return await projectsAPI.searchProjects(searchQuery, params);
       }
+      if (isRecruiter) {
+        return await projectsAPI.getRecruiterProjects(params);
+      }
       
       return await projectsAPI.getProjects(params);
     },
   });
 
-  const projects = data?.data || [];
-  const meta = data?.meta;
+  const projects = data?.data?.data || [];
+  const pagination = data?.data;
 
   return (
     <div className="space-y-6">
@@ -173,7 +176,7 @@ export default function ProjectsPage() {
           </div>
 
           {/* Pagination */}
-          {meta && meta.last_page > 1 && (
+          {pagination && pagination.last_page > 1 && (
             <div className="flex items-center justify-center gap-2">
               <Button
                 variant="outline"
