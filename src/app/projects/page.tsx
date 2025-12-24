@@ -36,8 +36,13 @@ export default function PublicProjectsPage() {
     },
   });
 
-  const projects = data?.data || [];
-  const meta = data?.meta;
+  // ✅ FIXED: Extract projects array from nested pagination structure
+  const projects = data?.data?.data || [];
+  const pagination = data?.data;
+
+  console.log('📊 Public Projects API Response:', data);
+  console.log('📦 Projects array:', projects);
+  console.log('📄 Pagination:', pagination);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -183,6 +188,7 @@ export default function PublicProjectsPage() {
             <div className="mb-6">
               <p className="text-gray-600 dark:text-gray-400">
                 Showing {projects.length} {projects.length === 1 ? 'project' : 'projects'}
+                {pagination && pagination.total && ` of ${pagination.total} total`}
               </p>
             </div>
 
@@ -194,7 +200,7 @@ export default function PublicProjectsPage() {
             </div>
 
             {/* Pagination */}
-            {meta && meta.last_page > 1 && (
+            {pagination && pagination.last_page > 1 && (
               <div className="flex items-center justify-center gap-4 mt-8">
                 <button
                   onClick={() => setPage(page - 1)}
@@ -204,11 +210,11 @@ export default function PublicProjectsPage() {
                   Previous
                 </button>
                 <span className="text-gray-600 dark:text-gray-400">
-                  Page {meta.current_page} of {meta.last_page}
+                  Page {pagination.current_page} of {pagination.last_page}
                 </span>
                 <button
                   onClick={() => setPage(page + 1)}
-                  disabled={page === meta.last_page}
+                  disabled={page === pagination.last_page}
                   className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
