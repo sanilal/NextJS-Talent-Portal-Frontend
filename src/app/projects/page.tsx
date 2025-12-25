@@ -12,7 +12,7 @@ export default function PublicProjectsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({
     experience_level: '',
-    project_type: '',
+    project_type_id: '',
     is_remote: '',
   });
   const [page, setPage] = useState(1);
