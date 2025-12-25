@@ -17,6 +17,17 @@ export default function PublicProjectsPage() {
   });
   const [page, setPage] = useState(1);
 
+  // ✅ Fetch project types dynamically
+  const { data: projectTypesData } = useQuery({
+    queryKey: ['project-types'],
+    queryFn: async () => {
+      const response = await api.get('/public/project-types');
+      return response.data;
+    },
+  });
+
+  const projectTypes = projectTypesData?.data || [];
+
   // Fetch public projects (no auth required)
   const { data, isLoading, error } = useQuery({
     queryKey: ['public-projects', page, filters, searchQuery],
@@ -24,8 +35,18 @@ export default function PublicProjectsPage() {
       const params: any = {
         page,
         limit: 12,
-        ...filters,
       };
+      
+      // ✅ Only send non-empty filter values
+      if (filters.experience_level) {
+        params.experience_level = filters.experience_level;
+      }
+      if (filters.project_type_id) {
+        params.project_type_id = filters.project_type_id;
+      }
+      if (filters.is_remote) {
+        params.is_remote = filters.is_remote;
+      }
       
       if (searchQuery) {
         params.search = searchQuery;
@@ -36,7 +57,7 @@ export default function PublicProjectsPage() {
     },
   });
 
-  // ✅ FIXED: Extract projects array from nested pagination structure
+  // ✅ Extract projects array from nested pagination structure
   const projects = data?.data?.data || [];
   const pagination = data?.data;
 
@@ -101,7 +122,7 @@ export default function PublicProjectsPage() {
               </div>
             </div>
 
-            {/* Filters */}
+            {/* Experience Level Filter */}
             <select
               value={filters.experience_level}
               onChange={(e) => setFilters({ ...filters, experience_level: e.target.value })}
@@ -115,18 +136,21 @@ export default function PublicProjectsPage() {
               <option value="expert">Expert</option>
             </select>
 
+            {/* ✅ Project Type Filter - Dynamic from API */}
             <select
-              value={filters.project_type}
-              onChange={(e) => setFilters({ ...filters, project_type: e.target.value })}
+              value={filters.project_type_id}
+              onChange={(e) => setFilters({ ...filters, project_type_id: e.target.value })}
               className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="">All Project Types</option>
-              <option value="fixed">Fixed Price</option>
-              <option value="hourly">Hourly Rate</option>
-              <option value="contract">Contract</option>
-              <option value="full-time">Full-time</option>
+              {projectTypes.map((type: any) => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                </option>
+              ))}
             </select>
 
+            {/* Remote Filter */}
             <select
               value={filters.is_remote}
               onChange={(e) => setFilters({ ...filters, is_remote: e.target.value })}
@@ -137,12 +161,13 @@ export default function PublicProjectsPage() {
               <option value="false">On-site Only</option>
             </select>
 
+            {/* Clear Filters */}
             <button
               onClick={() => {
                 setSearchQuery('');
                 setFilters({
                   experience_level: '',
-                  project_type: '',
+                  project_type_id: '',
                   is_remote: '',
                 });
               }}
