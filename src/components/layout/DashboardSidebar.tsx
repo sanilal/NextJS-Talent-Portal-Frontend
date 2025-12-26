@@ -11,7 +11,8 @@ import {
   Users,
   Star,
   Settings,
-  X
+  X,
+  Film
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/lib/utils';
@@ -28,6 +29,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
   const talentLinks = [
     { href: '/dashboard/talent', label: 'Dashboard', icon: Home },
     { href: '/dashboard/projects', label: 'Browse Projects', icon: Search },
+    { href: '/dashboard/casting-calls', label: 'Casting Calls', icon: Film },
     { href: '/dashboard/applications', label: 'My Applications', icon: FileText },
     { href: '/dashboard/profile', label: 'My Profile', icon: Users },
     { href: '/dashboard/messages', label: 'Messages', icon: MessageSquare },
@@ -36,6 +38,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
   const recruiterLinks = [
     { href: '/dashboard/recruiter', label: 'Dashboard', icon: Home },
     { href: '/dashboard/projects', label: 'My Projects', icon: Briefcase },
+    { href: '/dashboard/casting-calls', label: 'Casting Calls', icon: Film },
     { href: '/dashboard/talents', label: 'Find Talents', icon: Search },
     { href: '/dashboard/applications', label: 'Applications', icon: FileText },
     { href: '/dashboard/saved', label: 'Saved Talents', icon: Star },
