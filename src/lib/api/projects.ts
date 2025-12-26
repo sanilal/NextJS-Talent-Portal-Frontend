@@ -1,12 +1,72 @@
 import api from './axios';
 import type { 
-  Project, 
+  Project,
+  ProjectType,
   ProjectFormData, 
   PaginatedResponse,
   ApiResponse 
 } from '@/types';
 
 export const projectsAPI = {
+  // ====================================
+  // PUBLIC ENDPOINTS
+  // ====================================
+
+  /**
+   * Get all project types
+   * GET /api/v1/public/project-types
+   */
+  getProjectTypes: async () => {
+    const response = await api.get<ApiResponse<ProjectType[]>>('/public/project-types');
+    return response.data;
+  },
+
+  /**
+   * Get public projects (for talents browsing)
+   * GET /api/v1/projects
+   */
+  getProjects: async (params?: {
+    page?: number;
+    limit?: number;
+    project_type_id?: number;
+    category_id?: string;
+    budget_min?: number;
+    budget_max?: number;
+    search?: string;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
+  }) => {
+    const response = await api.get<PaginatedResponse<Project>>('/projects', { params });
+    return response.data;
+  },
+
+  /**
+   * Get single public project
+   * GET /api/v1/projects/{id}
+   */
+  getProject: async (id: number | string) => {
+    const response = await api.get<ApiResponse<Project & { has_applied: boolean }>>(`/projects/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Get public projects via /public prefix
+   * GET /api/v1/public/projects
+   */
+  getPublicProjects: async (params?: any) => {
+    const response = await api.get<PaginatedResponse<Project>>('/public/projects', { params });
+    return response.data;
+  },
+
+  /**
+   * Get public project details via /public prefix
+   * GET /api/v1/public/projects/{id}
+   */
+  getPublicProject: async (id: number | string) => {
+    const response = await api.get<ApiResponse<Project>>(`/public/projects/${id}`);
+    return response.data;
+  },
+
   // ====================================
   // RECRUITER ENDPOINTS (Protected)
   // ====================================
@@ -38,7 +98,7 @@ export const projectsAPI = {
 
   /**
    * Create new project (recruiter only)
-   * POST /api/v1/recruiter/projects ✅ FIXED
+   * POST /api/v1/recruiter/projects
    */
   createProject: async (data: ProjectFormData) => {
     const response = await api.post<ApiResponse<Project>>('/recruiter/projects', data);
@@ -82,36 +142,8 @@ export const projectsAPI = {
   },
 
   // ====================================
-  // PUBLIC/TALENT ENDPOINTS
+  // TALENT/SHARED ENDPOINTS
   // ====================================
-
-  /**
-   * Get public projects (for talents browsing)
-   * GET /api/v1/projects
-   */
-  getProjects: async (params?: {
-    page?: number;
-    limit?: number;
-    project_type_id?: number;
-    category_id?: string;
-    budget_min?: number;
-    budget_max?: number;
-    search?: string;
-    sort_by?: string;
-    sort_order?: 'asc' | 'desc';
-  }) => {
-    const response = await api.get<PaginatedResponse<Project>>('/projects', { params });
-    return response.data;
-  },
-
-  /**
-   * Get single public project
-   * GET /api/v1/projects/{id}
-   */
-  getProject: async (id: number | string) => {
-    const response = await api.get<ApiResponse<Project & { has_applied: boolean }>>(`/projects/${id}`);
-    return response.data;
-  },
 
   /**
    * Apply to a project
@@ -148,32 +180,15 @@ export const projectsAPI = {
   searchProjects: async (query: string, filters?: any) => {
     return projectsAPI.getProjects({ search: query, ...filters });
   },
-
-  // ====================================
-  // LEGACY/COMPATIBILITY (if needed)
-  // ====================================
-
-  /**
-   * Get public projects via /public prefix
-   * GET /api/v1/public/projects
-   */
-  getPublicProjects: async (params?: any) => {
-    const response = await api.get<PaginatedResponse<Project>>('/public/projects', { params });
-    return response.data;
-  },
-
-  /**
-   * Get public project details via /public prefix
-   * GET /api/v1/public/projects/{id}
-   */
-  getPublicProject: async (id: number | string) => {
-    const response = await api.get<ApiResponse<Project>>(`/public/projects/${id}`);
-    return response.data;
-  },
 };
 
-// Export individual functions if needed
+// Export individual functions for easier imports
 export const {
+  getProjectTypes, // ✅ NEW - Added this export
+  getProjects,
+  getProject,
+  getPublicProjects,
+  getPublicProject,
   createProject,
   getRecruiterProjects,
   getRecruiterProject,
@@ -181,7 +196,7 @@ export const {
   deleteProject,
   publishProject,
   closeProject,
-  getProjects,
-  getProject,
   applyToProject,
+  getProjectApplications,
+  searchProjects,
 } = projectsAPI;
