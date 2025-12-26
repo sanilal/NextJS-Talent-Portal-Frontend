@@ -53,6 +53,23 @@ export function ProjectCard({ project }: ProjectCardProps) {
             </div>
           )}
 
+          {/* Project Type */}
+              {project.project_type && (
+                <div className="flex items-center justify-items-start gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{project.project_type.icon}</span>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                      Project Type
+                    </p>
+                  </div>
+
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    {project.project_type.name}
+                  </p>
+                </div>
+              )}
+
+
           {/* Meta Information */}
           <div className="space-y-2 mb-4">
             {/* Budget */}

@@ -301,54 +301,43 @@ export interface Project {
   deliverables?: string[];
   
   // ✅ FIXED: Project type fields
-  project_type_id: number; // Film/TV type (Feature Film, TV Series, etc.)
-  project_type?: ProjectType;
+  project_type_id: number; // Film/TV project type
+  primary_category_id?: string; // UUID for talent category
   
-  // ✅ FIXED: Work and budget fields
-  work_type: 'on_site' | 'remote' | 'hybrid'; // Changed from is_remote boolean
-  budget_type: 'fixed' | 'hourly' | 'daily' | 'negotiable'; // Renamed from project_type
+  // ✅ FIXED: Work type (renamed from is_remote)
+  work_type?: 'on_site' | 'remote' | 'hybrid';
+  
+  // ✅ FIXED: Budget fields (renamed from project_type)
+  budget_type?: 'fixed' | 'hourly' | 'daily' | 'negotiable';
   budget_min?: number;
   budget_max?: number;
-  budget_currency: string;
-  budget_negotiable: boolean;
+  budget_currency?: string; // Default: AED
+  budget_negotiable?: boolean;
   
-  // Dates and duration
+  // Dates
   duration?: number; // in days
-  project_start_date?: string; // ✅ FIXED: Renamed from start_date
-  project_end_date?: string; // ✅ FIXED: Renamed from end_date
+  project_start_date?: string; // ✅ Renamed from start_date
+  project_end_date?: string; // ✅ Renamed from end_date
   application_deadline?: string;
   
-  // Location and requirements
   location?: string;
-  experience_level: 'entry' | 'intermediate' | 'advanced' | 'expert'; // ✅ FIXED: Removed 'junior' and 'senior'
+  experience_level?: 'entry' | 'intermediate' | 'advanced' | 'expert'; // ✅ FIXED: Updated options
   skills_required?: string[]; // Array of skill UUIDs
+  positions_available?: number;
   
-  // Metadata
-  positions_available: number;
-  status: 'draft' | 'published' | 'in_progress' | 'completed' | 'cancelled' | 'expired'; // ✅ FIXED: Changed 'closed' to 'expired'
-  visibility: 'public' | 'private' | 'invited_only';
-  urgency: 'low' | 'normal' | 'high' | 'urgent';
-  is_featured: boolean;
-  views_count: number;
-  applications_count: number;
+  // Status & Visibility
+  status: 'draft' | 'open' | 'in_progress' | 'completed' | 'cancelled' | 'on_hold'; // ✅ FIXED: Updated statuses
+  visibility?: 'public' | 'private' | 'invited_only';
+  urgency?: 'low' | 'normal' | 'high' | 'urgent';
   
-  // Application requirements
-  requires_portfolio: boolean;
-  requires_demo_reel: boolean;
-  attachments?: string[];
+  // Features
+  is_featured?: boolean;
+  requires_portfolio?: boolean;
+  requires_demo_reel?: boolean;
   application_questions?: string[];
   
-  // Publishing
-  published_at?: string;
-  
-  // Category (for talent classification)
-  primary_category_id?: string; // ✅ FIXED: Renamed from category_id, changed to UUID
-  category?: Category;
-  
   // Relations
-  recruiter?: User;
-  recruiterProfile?: RecruiterProfile;
-  skills?: Skill[];
+  recruiter?: RecruiterProfile;
   applications?: Application[];
   
   created_at: string;
@@ -651,3 +640,10 @@ export interface DashboardStats {
 export interface FormErrors {
   [key: string]: string;
 }
+
+// ============================================
+// CASTING CALLS TYPES
+// Re-exported from casting-calls.ts for convenience
+// ============================================
+
+export * from './casting-calls';
