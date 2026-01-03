@@ -13,6 +13,9 @@ import {
 } from '@/lib/api/casting-calls';
 import { useAuthStore } from '@/store/authStore';
 
+
+
+
 export default function CastingCallDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const queryClient = useQueryClient();

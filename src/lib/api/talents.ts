@@ -362,6 +362,24 @@ export const talentsAPI = {
   },
 
   /**
+   * ✅ FIXED: Get subcategories for a specific category
+   * Note: Backend does NOT support getting all subcategories without categoryId
+   * Use getPublicCategories() and extract subcategories from nested data instead
+   */
+  getPublicSubcategories: async (categoryId: string | number) => {
+    try {
+      // Get subcategories for specific category
+      const response = await api.get<ApiResponse<any[]>>(
+        `/public/categories/${categoryId}/subcategories`
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Get subcategories error:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  /**
    * Global search (talents, skills, projects)
    */
   globalSearch: async (query: string) => {
@@ -434,7 +452,23 @@ export const publicTalentsAPI = {
   get: talentsAPI.getPublicTalent,
   skills: talentsAPI.getPublicSkills,
   categories: talentsAPI.getPublicCategories,
+  subcategories: talentsAPI.getPublicSubcategories,
   search: talentsAPI.globalSearch,
 };
+
+// ============================================
+// ✅ UPDATED: Named export for casting calls compatibility
+// Now requires categoryId parameter
+// ============================================
+
+/**
+ * Get subcategories for a specific category
+ * Wrapper around talentsAPI.getPublicSubcategories() for named import compatibility
+ * 
+ * @param categoryId - UUID of the category
+ * @returns Promise with subcategories data
+ */
+export const getSubcategories = (categoryId: string | number) => 
+  talentsAPI.getPublicSubcategories(categoryId);
 
 export default talentsAPI;

@@ -185,10 +185,10 @@ export const countriesApi = {
   /**
    * Get states for a country
    */
-  getStates: async (countryId: number | string) => {
+  getStates: async (countryId: number) => {
     try {
-      const response = await api.get(`/public/states?countryId=${countryId}`);
-      return response.data.data?.states || [];  
+      const response = await api.get(`/public/states?country_id=${countryId}`);
+      return response.data.data || response.data;
     } catch (error: any) {
       console.error('Get states error:', error.response?.data || error.message);
       throw error;

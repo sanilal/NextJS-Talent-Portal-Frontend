@@ -20,7 +20,7 @@ import {
 export const getCastingCalls = async (
   filters?: CastingCallFilters
 ): Promise<CastingCallsResponse> => {
-  const response = await axios.get('/v1/casting-calls', { params: filters });
+  const response = await axios.get('/public/casting-calls', { params: filters });
   return response.data;
 };
 
@@ -28,7 +28,7 @@ export const getCastingCalls = async (
  * Get single casting call by ID
  */
 export const getCastingCall = async (id: string): Promise<CastingCallResponse> => {
-  const response = await axios.get(`/v1/casting-calls/${id}`);
+  const response = await axios.get(`/public/casting-calls/${id}`);
   return response.data;
 };
 
@@ -42,7 +42,7 @@ export const getCastingCall = async (id: string): Promise<CastingCallResponse> =
 export const getRecruiterCastingCalls = async (
   filters?: CastingCallFilters
 ): Promise<CastingCallsResponse> => {
-  const response = await axios.get('/v1/recruiter/casting-calls', { params: filters });
+  const response = await axios.get('/recruiter/casting-calls', { params: filters });
   return response.data;
 };
 
@@ -52,7 +52,7 @@ export const getRecruiterCastingCalls = async (
 export const createCastingCall = async (
   data: CreateCastingCallRequest
 ): Promise<CastingCallResponse> => {
-  const response = await axios.post('/v1/recruiter/casting-calls', data);
+  const response = await axios.post('/recruiter/casting-calls', data);
   return response.data;
 };
 
@@ -63,7 +63,7 @@ export const updateCastingCall = async (
   id: string,
   data: UpdateCastingCallRequest
 ): Promise<CastingCallResponse> => {
-  const response = await axios.put(`/v1/recruiter/casting-calls/${id}`, data);
+  const response = await axios.put(`/recruiter/casting-calls/${id}`, data);
   return response.data;
 };
 
@@ -71,7 +71,7 @@ export const updateCastingCall = async (
  * Delete casting call
  */
 export const deleteCastingCall = async (id: string): Promise<{ success: boolean; message: string }> => {
-  const response = await axios.delete(`/v1/recruiter/casting-calls/${id}`);
+  const response = await axios.delete(`/recruiter/casting-calls/${id}`);
   return response.data;
 };
 
@@ -79,7 +79,7 @@ export const deleteCastingCall = async (id: string): Promise<{ success: boolean;
  * Publish casting call
  */
 export const publishCastingCall = async (id: string): Promise<CastingCallResponse> => {
-  const response = await axios.post(`/v1/recruiter/casting-calls/${id}/publish`);
+  const response = await axios.post(`/recruiter/casting-calls/${id}/publish`);
   return response.data;
 };
 
@@ -87,7 +87,7 @@ export const publishCastingCall = async (id: string): Promise<CastingCallRespons
  * Close casting call
  */
 export const closeCastingCall = async (id: string): Promise<CastingCallResponse> => {
-  const response = await axios.post(`/v1/recruiter/casting-calls/${id}/close`);
+  const response = await axios.post(`/recruiter/casting-calls/${id}/close`);
   return response.data;
 };
 
@@ -99,7 +99,7 @@ export const closeCastingCall = async (id: string): Promise<CastingCallResponse>
  * Get all genres
  */
 export const getGenres = async (): Promise<{ success: boolean; message: string; data: Genre[] }> => {
-  const response = await axios.get('/v1/public/genres');
+  const response = await axios.get('/public/genres');
   return response.data;
 };
 
@@ -107,7 +107,7 @@ export const getGenres = async (): Promise<{ success: boolean; message: string; 
  * Get single genre
  */
 export const getGenre = async (id: string): Promise<{ success: boolean; message: string; data: Genre }> => {
-  const response = await axios.get(`/v1/public/genres/${id}`);
+  const response = await axios.get(`/public/genres/${id}`);
   return response.data;
 };
 
@@ -119,7 +119,7 @@ export const getGenre = async (id: string): Promise<{ success: boolean; message:
  * Get age groups
  */
 export const getAgeGroups = async (): Promise<DropdownValuesResponse> => {
-  const response = await axios.get('/v1/public/dropdown-list', {
+  const response = await axios.get('/public/dropdown-list', {
     params: { type: 4 }, // TYPE_AGE_GROUP
   });
   return response.data;
@@ -129,7 +129,7 @@ export const getAgeGroups = async (): Promise<DropdownValuesResponse> => {
  * Get skin tones
  */
 export const getSkinTones = async (): Promise<DropdownValuesResponse> => {
-  const response = await axios.get('/v1/public/dropdown-list', {
+  const response = await axios.get('/public/dropdown-list', {
     params: { type: 2 }, // TYPE_SKIN_TONE
   });
   return response.data;
@@ -139,7 +139,7 @@ export const getSkinTones = async (): Promise<DropdownValuesResponse> => {
  * Get heights
  */
 export const getHeights = async (): Promise<DropdownValuesResponse> => {
-  const response = await axios.get('/v1/public/dropdown-list', {
+  const response = await axios.get('/public/dropdown-list', {
     params: { type: 1 }, // TYPE_HEIGHT
   });
   return response.data;
@@ -149,7 +149,7 @@ export const getHeights = async (): Promise<DropdownValuesResponse> => {
  * Get genders
  */
 export const getGenders = async (): Promise<DropdownValuesResponse> => {
-  const response = await axios.get('/v1/public/dropdown-list', {
+  const response = await axios.get('/public/dropdown-list', {
     params: { type: 5 }, // TYPE_GENDER
   });
   return response.data;
@@ -159,7 +159,7 @@ export const getGenders = async (): Promise<DropdownValuesResponse> => {
  * Get multiple dropdown types at once
  */
 export const getCastingCallDropdowns = async () => {
-  const response = await axios.post('/v1/public/dropdown-list/multiple', {
+  const response = await axios.post('/public/dropdown-list/multiple', {
     types: [1, 2, 4, 5], // HEIGHT, SKIN_TONE, AGE_GROUP, GENDER
   });
   return response.data;

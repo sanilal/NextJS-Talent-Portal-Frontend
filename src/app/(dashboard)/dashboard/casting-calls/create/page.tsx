@@ -21,6 +21,7 @@ import { CreateCastingCallRequest, CastingCallRequirement } from '@/types/castin
 import { getProjectTypes } from '@/lib/api/projects';
 import { getCountries, getStates } from '@/lib/api/auth';
 import { getSubcategories } from '@/lib/api/talents';
+import { talentsAPI } from '@/lib/api/talents';
 
 // Validation schema
 const castingCallSchema = z.object({
@@ -67,7 +68,16 @@ type CastingCallFormData = z.infer<typeof castingCallSchema>;
 export default function CreateCastingCallPage() {
   const router = useRouter();
   const [selectedCountry, setSelectedCountry] = useState<string>('');
-  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  
+  // ✅ FIXED: Changed from uploadedFiles to selectedFiles (stores actual File objects)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
+  // ✅ FIXED: Fetch categories first
+  const { data: categories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: talentsAPI.getPublicCategories,
+  });
 
   // Fetch dropdown data
   const { data: projectTypes } = useQuery({
@@ -80,10 +90,18 @@ export default function CreateCastingCallPage() {
     queryFn: getGenres,
   });
 
-  const { data: countries } = useQuery({
-    queryKey: ['countries'],
-    queryFn: getCountries,
-  });
+ const { data: countries, isLoading: countriesLoading, error: countriesError } = useQuery({
+  queryKey: ['countries'],
+  queryFn: getCountries,
+});
+
+// ADD THIS DEBUG LOG
+console.log('🌍 Countries Debug:', {
+  data: countries,
+  isLoading: countriesLoading,
+  error: countriesError,
+  dataLength: countries?.data?.length || 0,
+});
 
   const { data: states } = useQuery({
     queryKey: ['states', selectedCountry],
@@ -91,9 +109,12 @@ export default function CreateCastingCallPage() {
     enabled: !!selectedCountry,
   });
 
+  // ✅ FIXED: Get subcategories based on selected category
+  // Only fetch when a category is selected, otherwise use data from categories
   const { data: subcategories } = useQuery({
-    queryKey: ['subcategories'],
-    queryFn: () => getSubcategories(1), // Assuming CategoryId 1 for talents
+    queryKey: ['subcategories', selectedCategory],
+    queryFn: () => getSubcategories(selectedCategory!),
+    enabled: selectedCategory !== null && selectedCategory !== '', // Only fetch when category is selected
   });
 
   const { data: ageGroups } = useQuery({
@@ -148,26 +169,75 @@ export default function CreateCastingCallPage() {
     setSelectedCountry(watchCountry);
   }
 
-  // Create mutation
+  // ✅ FIXED: Update mutation to use fetch with FormData
   const createMutation = useMutation({
-    mutationFn: createCastingCall,
+    mutationFn: async (formData: FormData) => {
+      // Get token from localStorage (adjust based on your auth setup)
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch('http://localhost:8000/api/v1/recruiter/casting-calls', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // Don't set Content-Type - browser will set it automatically with boundary
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create casting call');
+      }
+
+      return response.json();
+    },
     onSuccess: (data) => {
       toast.success('Casting call created successfully!');
       router.push(`/dashboard/casting-calls/${data.data.id}`);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to create casting call');
+      toast.error(error.message || 'Failed to create casting call');
     },
   });
 
+  // ✅ FIXED: Update onSubmit to build FormData instead of JSON
   const onSubmit = (data: CastingCallFormData) => {
-    const payload: CreateCastingCallRequest = {
-      ...data,
-      rate_amount: data.rate_amount ? parseFloat(data.rate_amount) : undefined,
-      media_ids: uploadedFiles.map((f) => f.id),
-    };
+    const formData = new FormData();
 
-    createMutation.mutate(payload);
+    // Add all required fields
+    formData.append('project_type_id', data.project_type_id);
+    formData.append('project_name', data.project_name);
+    formData.append('title', data.title);
+    formData.append('description', data.description);
+    formData.append('deadline', data.deadline);
+    formData.append('country_id', data.country_id);
+    
+    // Add optional fields only if they exist
+    if (data.genre_id) formData.append('genre_id', data.genre_id);
+    if (data.director) formData.append('director', data.director);
+    if (data.production_company) formData.append('production_company', data.production_company);
+    if (data.audition_date) formData.append('audition_date', data.audition_date);
+    if (data.state_id) formData.append('state_id', data.state_id);
+    if (data.city) formData.append('city', data.city);
+    if (data.location) formData.append('location', data.location);
+    if (data.additional_notes) formData.append('additional_notes', data.additional_notes);
+    if (data.compensation_type) formData.append('compensation_type', data.compensation_type);
+    if (data.rate_amount) formData.append('rate_amount', data.rate_amount);
+    if (data.rate_currency) formData.append('rate_currency', data.rate_currency);
+    
+    formData.append('status', data.status || 'draft');
+    formData.append('is_urgent', data.is_urgent ? '1' : '0');
+    formData.append('is_featured', data.is_featured ? '1' : '0');
+
+    // Add requirements as JSON string
+    formData.append('requirements', JSON.stringify(data.requirements));
+
+    // ✅ Add actual files
+    selectedFiles.forEach((file) => {
+      formData.append('media[]', file);
+    });
+
+    createMutation.mutate(formData);
   };
 
   return (
@@ -268,7 +338,7 @@ export default function CreateCastingCallPage() {
                   type="text"
                   {...register('director')}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Director name"
+                  placeholder="Enter director name"
                 />
               </div>
 
@@ -281,7 +351,7 @@ export default function CreateCastingCallPage() {
                   type="text"
                   {...register('production_company')}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Production company name"
+                  placeholder="Enter production company"
                 />
               </div>
 
@@ -297,10 +367,10 @@ export default function CreateCastingCallPage() {
                 />
               </div>
 
-              {/* Last Date of Submission */}
+              {/* Submission Deadline */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Last Date of Submission <span className="text-red-500">*</span>
+                  Submission Deadline <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -318,39 +388,40 @@ export default function CreateCastingCallPage() {
                   Country <span className="text-red-500">*</span>
                 </label>
                 <select
-                  {...register('country_id')}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select country</option>
-                  {countries?.data?.map((country) => (
-                    <option key={country.id} value={country.id}>
-                      {country.name}
-                    </option>
-                  ))}
-                </select>
+                {...register('country_id')}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select country</option>
+                {countries?.data?.map((country) => (
+                  <option key={country.id} value={country.id}>
+                    {country.countryName}  {/* ✅ FIXED */}
+                  </option>
+                ))}
+              </select>
                 {errors.country_id && (
                   <p className="mt-1 text-sm text-red-600">{errors.country_id.message}</p>
                 )}
               </div>
 
-              {/* State/Province */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  State / Province
-                </label>
-                <select
-                  {...register('state_id')}
-                  disabled={!selectedCountry}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                >
-                  <option value="">Select state</option>
-                  {states?.data?.map((state) => (
-                    <option key={state.id} value={state.id}>
-                      {state.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* State */}
+              {selectedCountry && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    State/Region
+                  </label>
+                  <select
+                    {...register('state_id')}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select state</option>
+                    {states?.data?.map((state) => (
+                      <option key={state.id} value={state.id}>
+                        {state.stateName}  {/* ✅ FIXED - probably was state.name */}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* City */}
               <div className="mb-4">
@@ -365,10 +436,23 @@ export default function CreateCastingCallPage() {
                 />
               </div>
 
+              {/* Location Details */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Location Details
+                </label>
+                <input
+                  type="text"
+                  {...register('location')}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., Studio address, filming location"
+                />
+              </div>
+
               {/* Synopsis */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Synopsis <span className="text-red-500">*</span>
+                  Synopsis/Description <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   {...register('description')}
@@ -384,7 +468,7 @@ export default function CreateCastingCallPage() {
               {/* Additional Notes */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Additional Notes <span className="text-gray-400">(Optional)</span>
+                  Additional Notes
                 </label>
                 <textarea
                   {...register('additional_notes')}
@@ -394,7 +478,7 @@ export default function CreateCastingCallPage() {
                 />
               </div>
 
-              {/* Attach Documents */}
+              {/* ✅ FIXED: Attach Documents with file preview */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Attach Documents <span className="text-gray-400">(Up to 10 files)</span>
@@ -402,14 +486,55 @@ export default function CreateCastingCallPage() {
                 <input
                   type="file"
                   multiple
-                  accept=".pdf,.doc,.docx"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp4,.mov"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   onChange={(e) => {
-                    // Handle file upload - integrate with your media upload API
-                    console.log('Files selected:', e.target.files);
+                    if (e.target.files) {
+                      setSelectedFiles(Array.from(e.target.files));
+                    }
                   }}
                 />
-                <p className="mt-1 text-sm text-gray-500">PDF, DOC, DOCX accepted</p>
+                
+                {/* Show selected files */}
+                {selectedFiles.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-sm font-medium text-gray-700">
+                      Selected {selectedFiles.length} file(s):
+                    </p>
+                    <ul className="space-y-1">
+                      {selectedFiles.map((file, index) => (
+                        <li 
+                          key={index} 
+                          className="flex items-center justify-between text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded"
+                        >
+                          <span className="flex items-center">
+                            <svg 
+                              className="w-4 h-4 mr-2 text-blue-500" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round" 
+                                strokeWidth={2} 
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                              />
+                            </svg>
+                            {file.name}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                <p className="mt-1 text-sm text-gray-500">
+                  PDF, DOC, DOCX, JPG, PNG, MP4, MOV accepted (Max 50MB per file)
+                </p>
               </div>
             </div>
           </div>
@@ -431,6 +556,28 @@ export default function CreateCastingCallPage() {
                 >
                   + Add Requirement
                 </button>
+              </div>
+
+              {/* ✅ ADDED: Category Filter (Optional) */}
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Filter Subcategories by Category (Optional)
+                </label>
+                <select
+                  value={selectedCategory || ''}
+                  onChange={(e) => setSelectedCategory(e.target.value || null)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">All Categories</option>
+                  {categories?.data?.map((cat: any) => (
+                    <option key={cat.category.id} value={cat.category.id}>
+                      {cat.category.categoryName}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Select a category to filter subcategories below
+                </p>
               </div>
 
               {fields.map((field, index) => (
@@ -523,7 +670,7 @@ export default function CreateCastingCallPage() {
                     </select>
                   </div>
 
-                  {/* Subcategory */}
+                  {/* ✅ FIXED: Subcategory with grouped options */}
                   <div className="mb-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Subcategory
@@ -533,11 +680,25 @@ export default function CreateCastingCallPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
                     >
                       <option value="">Select subcategory</option>
-                      {subcategories?.data?.map((sub) => (
-                        <option key={sub.id} value={sub.id}>
-                          {sub.subcategoryName}
-                        </option>
-                      ))}
+                      {selectedCategory ? (
+                        // Show filtered subcategories
+                        subcategories?.data?.map((sub: any) => (
+                          <option key={sub.id} value={sub.id}>
+                            {sub.subcategoryName}
+                          </option>
+                        ))
+                      ) : (
+                        // Show all subcategories grouped by category
+                        categories?.data?.map((cat: any) => (
+                          <optgroup key={cat.category.id} label={cat.category.categoryName}>
+                            {cat.category.subcategories.map((sub: any) => (
+                              <option key={sub.id} value={sub.id}>
+                                {sub.subcategoryName}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))
+                      )}
                     </select>
                   </div>
 
